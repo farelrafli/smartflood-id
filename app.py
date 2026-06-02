@@ -37,7 +37,7 @@ def load_and_train():
     np.random.seed(42)
     n = 2000
     df = pd.DataFrame({
-        'tanggal':          pd.date_range('2015-01-01', periods=n, freq='6H'),
+        'tanggal':          pd.date_range('2015-01-01', periods=n, freq='6h'),
         'curah_hujan_mm':   np.random.exponential(30, n).clip(0, 200).round(1),
         'tinggi_air_m':     np.random.uniform(0.5, 5.0, n).round(2),
         'kecepatan_angin':  np.random.uniform(5, 40, n).round(1),
