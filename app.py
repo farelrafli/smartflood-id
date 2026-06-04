@@ -131,7 +131,7 @@ def train_model(rr_mean_musim, rr_mean_kering, rh_mean, suhu_mean, angin_mean):
         'musim_hujan':musim,'laporan_warga':laporan,'elevasi_m':elevasi_list,
         'tinggi_air_m':tinggi_air,'debit_sungai_m3s':debit,
         'indeks_risiko':indeks.round(2),'hujan_ekstrem':(curah_hujan>100).astype(int),
-        'kecamatan_enc':kec_enc,
+        'kecamatan_enc':kec_enc,'kecamatan':kec_list,
     })
     df['banjir'] = (
         (df['curah_hujan_mm']>60)|(df['tinggi_air_m']>3.0)|
