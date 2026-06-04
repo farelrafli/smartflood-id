@@ -338,6 +338,115 @@ with tab1:
         'prob':'Prob. Banjir (%)','status':'Status'
     }), use_container_width=True)
 
+    # ── Peta Geospasial DEMNAS ──
+    st.markdown("---")
+    st.markdown("#### 🗺️ Peta Risiko Banjir — Kecamatan Surabaya (DEMNAS BIG)")
+    st.caption("Elevasi dan risiko banjir per kecamatan berdasarkan data Digital Elevation Model (DEMNAS) Badan Informasi Geospasial.")
+
+    # Koordinat pusat tiap kecamatan (lat/lon real Surabaya)
+    KORD = {
+        'Benowo':     (-7.2627, 112.6521),
+        'Pakal':      (-7.2512, 112.6728),
+        'Tandes':     (-7.2391, 112.6945),
+        'Lakarsantri':(-7.3002, 112.6612),
+        'Wonokromo':  (-7.3090, 112.7348),
+        'Rungkut':    (-7.3201, 112.7891),
+        'Sukolilo':   (-7.2872, 112.7980),
+    }
+
+    map_rows = []
+    for _, row in dfp.iterrows():
+        kec = row['kecamatan']
+        if kec in KORD:
+            lat, lon = KORD[kec]
+            map_rows.append({
+                'lat': lat, 'lon': lon,
+                'kecamatan': kec,
+                'prob': row['prob'],
+                'elevasi': row['elevasi_m'],
+                'status': row['status'],
+                'tinggi_air': row['tinggi_air_m'],
+            })
+    df_map = pd.DataFrame(map_rows)
+
+    # SVG peta bubble sederhana (tidak butuh library tambahan)
+    col_map, col_leg = st.columns([2, 1])
+    with col_map:
+        # Normalize coords to SVG viewport
+        lats  = [r[0] for r in KORD.values()]
+        lons  = [r[1] for r in KORD.values()]
+        lat_min, lat_max = min(lats)-0.02, max(lats)+0.02
+        lon_min, lon_max = min(lons)-0.02, max(lons)+0.02
+
+        def to_svg(lat, lon, w=520, h=380):
+            x = (lon - lon_min)/(lon_max - lon_min) * w
+            y = (1 - (lat - lat_min)/(lat_max - lat_min)) * h
+            return round(x,1), round(y,1)
+
+        def risk_color(p):
+            if p > 70: return '#e24b4a'
+            if p > 40: return '#ef9f27'
+            return '#4ade80'
+
+        circles = ''
+        labels  = ''
+        for _, r in df_map.iterrows():
+            x, y = to_svg(r['lat'], r['lon'])
+            col  = risk_color(r['prob'])
+            rad  = max(22, min(40, int(r['prob']/2.2)))
+            circles += f'<circle cx="{x}" cy="{y}" r="{rad}" fill="{col}" fill-opacity="0.82" stroke="#0b1120" stroke-width="1.5"/>\n'
+            labels  += f'<text x="{x}" y="{y-4}" text-anchor="middle" font-size="9" fill="#e8f4fd" font-weight="bold">{r["kecamatan"]}</text>\n'
+            labels  += f'<text x="{x}" y="{y+9}" text-anchor="middle" font-size="10" fill="#ffffff" font-weight="bold">{r["prob"]:.0f}%</text>\n'
+            labels  += f'<text x="{x}" y="{y+20}" text-anchor="middle" font-size="8" fill="#b0c4d8">{r["elevasi"]}m dpl</text>\n'
+
+        svg = f"""<svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" style="background:#0f1929;border-radius:12px;border:1px solid #1e3050;width:100%">
+  <text x="10" y="22" font-size="11" fill="#7a9dbf">Surabaya — Peta Risiko Banjir (DEMNAS BIG)</text>
+  <text x="10" y="36" font-size="9" fill="#4a6a8a">Ukuran lingkaran = tingkat risiko · Warna = status</text>
+  {circles}
+  {labels}
+  <!-- Legend -->
+  <rect x="370" y="330" width="140" height="44" rx="6" fill="#0b1120" fill-opacity="0.8"/>
+  <circle cx="383" cy="343" r="6" fill="#e24b4a"/><text x="393" y="347" font-size="9" fill="#b0c4d8">Kritis &gt;70%</text>
+  <circle cx="383" cy="358" r="6" fill="#ef9f27"/><text x="393" y="362" font-size="9" fill="#b0c4d8">Waspada &gt;40%</text>
+  <circle cx="445" cy="343" r="6" fill="#4ade80"/><text x="455" y="347" font-size="9" fill="#b0c4d8">Aman</text>
+</svg>"""
+        st.markdown(svg, unsafe_allow_html=True)
+
+    with col_leg:
+        st.markdown("**📍 Sumber Geospasial:**")
+        st.markdown("""
+<div style='font-size:.82rem;color:#b0c4d8;line-height:2'>
+<span class='data-badge badge-demnas'>DEMNAS BIG</span><br>
+Elevasi: Digital Elevation Model Nasional<br>
+Resolusi 8 meter · Seluruh wilayah Surabaya<br><br>
+<b>Koordinat kecamatan:</b><br>
+</div>
+""", unsafe_allow_html=True)
+        for _, r in df_map.iterrows():
+            col_s = '#f87171' if r['prob']>70 else '#fbbf24' if r['prob']>40 else '#86efac'
+            st.markdown(f"<div style='font-size:.78rem;color:{col_s};margin-bottom:3px'>📍 <b>{r['kecamatan']}</b> — {r['elevasi']}m dpl · {r['prob']:.0f}%</div>", unsafe_allow_html=True)
+
+    # ── PetaBencana Live ──
+    st.markdown("---")
+    st.markdown("#### 📱 Laporan Warga Real-time — PetaBencana.id")
+    col_p1, col_p2 = st.columns([1,2])
+    with col_p1:
+        peta_color = '#4ade80' if not peta_ok else ('#e24b4a' if peta_count>5 else '#ef9f27' if peta_count>0 else '#4ade80')
+        st.markdown(f"""<div class='metric-card' style='text-align:center;padding:1.5rem'>
+            <div style='font-size:3rem;font-weight:700;color:{peta_color}'>{peta_count if peta_ok else '–'}</div>
+            <div style='font-size:.8rem;color:#7a9dbf;margin-top:6px'>LAPORAN BANJIR AKTIF<br>7 hari terakhir · Surabaya</div>
+            <div style='font-size:.7rem;color:#4a6a8a;margin-top:8px'>{'✅ API Terhubung' if peta_ok else '⚠️ API tidak responsif (fallback mode)'}</div>
+        </div>""", unsafe_allow_html=True)
+    with col_p2:
+        st.markdown("""<div style='background:#0f2540;border:1px solid #1e4a7a;border-radius:10px;padding:1rem;font-size:.83rem;color:#b0c4d8;line-height:1.8'>
+        <b style='color:#e8f4fd'>Tentang PetaBencana.id</b><br>
+        Platform crowdsourcing laporan bencana real-time yang digunakan BNPB.<br>
+        Warga melaporkan genangan lewat Twitter/X, Telegram, atau web → dikonfirmasi &amp; ditampilkan di peta.<br><br>
+        <b style='color:#a78bfa'>Endpoint API yang digunakan:</b><br>
+        <code style='background:#0b1120;padding:2px 6px;border-radius:4px;font-size:.78rem'>data.petabencana.id/reports?city=surabaya&amp;timewindow=168</code><br><br>
+        Integrasi ini memungkinkan SmartFlood ID memverifikasi prediksi model dengan laporan banjir nyata dari warga Surabaya.
+        </div>""", unsafe_allow_html=True)
+
 # ════════════════════════
 # TAB 2 — Data BMKG Real
 # ════════════════════════
