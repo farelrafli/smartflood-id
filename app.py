@@ -7,6 +7,7 @@ import seaborn as sns
 import requests
 import os
 import warnings
+from datetime import datetime
 warnings.filterwarnings('ignore')
 
 from sklearn.ensemble import RandomForestClassifier
@@ -48,10 +49,77 @@ st.markdown("""
     .badge-bmkg    { background: #1a3a6e; color: #60a5fa; border: 1px solid #2a5aaa; }
     .badge-peta    { background: #2d1a5e; color: #a78bfa; border: 1px solid #5b32d0; }
     .badge-demnas  { background: #0d3322; color: #4ade80; border: 1px solid #166534; }
+    .badge-rt      { background: #2d1a0a; color: #fbbf24; border: 1px solid #b45309; }
     .stTabs [data-baseweb="tab"] { color: #7a9dbf !important; }
     .stTabs [aria-selected="true"] { color: #4fc3f7 !important; border-bottom-color: #4fc3f7 !important; }
+    .rt-banner {
+        background: linear-gradient(90deg, #0f2d1a 0%, #0f2540 100%);
+        border: 1px solid #166534; border-radius: 10px;
+        padding: .7rem 1.2rem; margin-bottom: .8rem;
+        font-size: .82rem; color: #4ade80;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════
+# DATA FETCHERS
+# ══════════════════════════════════════════════════════════════
+
+# ── Open-Meteo: real-time cuaca Surabaya (gratis, tanpa API key) ──
+@st.cache_data(ttl=1800)  # refresh setiap 30 menit
+def fetch_realtime_weather():
+    """Ambil cuaca Surabaya real-time dari Open-Meteo API."""
+    try:
+        url = (
+            "https://api.open-meteo.com/v1/forecast"
+            "?latitude=-7.2575&longitude=112.7521"
+            "&current=temperature_2m,relative_humidity_2m,"
+            "precipitation,wind_speed_10m,weather_code"
+            "&timezone=Asia%2FJakarta"
+        )
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 200:
+            cur = resp.json()["current"]
+            return {
+                "RR":    round(cur.get("precipitation", 0.0), 1),
+                "TAVG":  round(cur.get("temperature_2m", 28.5), 1),
+                "RH":    round(cur.get("relative_humidity_2m", 75.0), 1),
+                "ANGIN": round(cur.get("wind_speed_10m", 2.5) / 3.6, 1),  # km/h → m/s
+                "WMO":   cur.get("weather_code", 0),
+                "TIME":  cur.get("time", ""),
+                "OK":    True,
+                "SRC":   "Open-Meteo API"
+            }
+    except Exception:
+        pass
+    return {"RR": 0.0, "TAVG": 28.5, "RH": 75.0, "ANGIN": 2.5,
+            "WMO": 0, "TIME": "", "OK": False, "SRC": "fallback"}
+
+# ── WMO weather code → deskripsi ──
+def wmo_desc(code):
+    if code == 0:   return "☀️ Cerah"
+    if code <= 3:   return "⛅ Berawan sebagian"
+    if code <= 48:  return "🌫️ Berkabut"
+    if code <= 67:  return "🌧️ Hujan"
+    if code <= 77:  return "❄️ Salju/hujan es"
+    if code <= 82:  return "🌦️ Hujan ringan"
+    if code <= 86:  return "🌨️ Salju lebat"
+    if code <= 99:  return "⛈️ Badai petir"
+    return "🌤️ Tidak diketahui"
+
+# ── PetaBencana ───────────────────────────────────────────────
+@st.cache_data(ttl=600)  # refresh setiap 10 menit
+def fetch_petabencana():
+    try:
+        resp = requests.get(
+            'https://data.petabencana.id/reports?city=surabaya&timewindow=168',
+            timeout=8)
+        if resp.status_code == 200:
+            feats = resp.json().get('features', [])
+            return len(feats), True
+    except Exception:
+        pass
+    return 0, False
 
 # ── BMKG Excel loader ─────────────────────────────────────────
 def load_bmkg_excel(path):
@@ -72,18 +140,9 @@ def load_bmkg_excel(path):
         df[col] = df[col].fillna(df[col].median())
     return df, meta
 
-# ── PetaBencana ───────────────────────────────────────────────
-def fetch_petabencana():
-    try:
-        resp = requests.get('https://data.petabencana.id/reports?city=surabaya&timewindow=168', timeout=8)
-        if resp.status_code == 200:
-            feats = resp.json().get('features', [])
-            return len(feats), True
-    except:
-        pass
-    return 0, False
-
-# ── DEMNAS elevasi ────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+# KONSTANTA DEMNAS
+# ══════════════════════════════════════════════════════════════
 ELEVASI = {
     'Benowo':3.2,'Pakal':4.1,'Tandes':5.0,'Lakarsantri':8.5,
     'Wonokromo':6.2,'Rungkut':9.8,'Sukolilo':7.3,'Gubeng':5.5,
@@ -92,7 +151,20 @@ ELEVASI = {
 }
 PRIORITAS_7 = ['Benowo','Pakal','Tandes','Lakarsantri','Wonokromo','Rungkut','Sukolilo']
 
-# ── Train model (cached) ──────────────────────────────────────
+# Koordinat lat/lon real tiap kecamatan
+KORD = {
+    'Benowo':     (-7.2627, 112.6521),
+    'Pakal':      (-7.2512, 112.6728),
+    'Tandes':     (-7.2391, 112.6945),
+    'Lakarsantri':(-7.3002, 112.6612),
+    'Wonokromo':  (-7.3090, 112.7348),
+    'Rungkut':    (-7.3201, 112.7891),
+    'Sukolilo':   (-7.2872, 112.7980),
+}
+
+# ══════════════════════════════════════════════════════════════
+# MODEL
+# ══════════════════════════════════════════════════════════════
 @st.cache_resource
 def train_model(rr_mean_musim, rr_mean_kering, rh_mean, suhu_mean, angin_mean):
     np.random.seed(42)
@@ -102,29 +174,26 @@ def train_model(rr_mean_musim, rr_mean_kering, rh_mean, suhu_mean, angin_mean):
     elevasi_list = np.repeat([ELEVASI[k] for k in kecs], n_per_kec)
     bulan_list   = np.random.randint(1,13,n_total)
     musim        = np.isin(bulan_list,[11,12,1,2,3,4]).astype(int)
-
-    curah_hujan = np.clip(
+    curah_hujan  = np.clip(
         np.random.exponential(np.where(musim==1, max(rr_mean_musim,5), max(rr_mean_kering,1)))
         + np.random.normal(0,3,n_total), 0, 250).round(1)
-    kelembaban  = np.clip(np.where(musim==1,
+    kelembaban   = np.clip(np.where(musim==1,
         np.random.normal(rh_mean+5,6,n_total),
         np.random.normal(rh_mean-5,8,n_total)),55,100).round(1)
-    suhu        = np.clip(np.where(musim==1,
+    suhu         = np.clip(np.where(musim==1,
         np.random.normal(suhu_mean-1.5,1.5,n_total),
         np.random.normal(suhu_mean+1.5,1.5,n_total)),22,38).round(1)
-    kec_angin   = np.clip(np.random.exponential(max(angin_mean,2),n_total)+1,0.5,20).round(1)
-    durasi      = np.random.randint(0,13,n_total)
-    laporan     = np.random.poisson(np.where(curah_hujan>50,3,0.5))
-    tinggi_air  = np.clip(
+    kec_angin    = np.clip(np.random.exponential(max(angin_mean,2),n_total)+1,0.5,20).round(1)
+    durasi       = np.random.randint(0,13,n_total)
+    laporan      = np.random.poisson(np.where(curah_hujan>50,3,0.5))
+    tinggi_air   = np.clip(
         (10-elevasi_list)/10*np.random.uniform(0.5,4,n_total)
         + curah_hujan/100*np.random.uniform(0.3,1.5,n_total), 0.2, 5.5).round(2)
-    debit       = np.clip(tinggi_air*80+np.random.normal(0,30,n_total),10,600).round(1)
-    indeks      = (curah_hujan*0.35 + tinggi_air*0.30
-                   + (10-elevasi_list)*0.20 + laporan*2*0.15)
-
-    le  = LabelEncoder()
-    kec_enc = le.fit_transform(kec_list)
-
+    debit        = np.clip(tinggi_air*80+np.random.normal(0,30,n_total),10,600).round(1)
+    indeks       = (curah_hujan*0.35 + tinggi_air*0.30
+                    + (10-elevasi_list)*0.20 + laporan*2*0.15)
+    le           = LabelEncoder()
+    kec_enc      = le.fit_transform(kec_list)
     df = pd.DataFrame({
         'curah_hujan_mm':curah_hujan,'kelembaban_pct':kelembaban,'suhu_c':suhu,
         'kecepatan_angin':kec_angin,'durasi_hujan_jam':durasi,'bulan':bulan_list,
@@ -138,37 +207,33 @@ def train_model(rr_mean_musim, rr_mean_kering, rh_mean, suhu_mean, angin_mean):
         ((df['durasi_hujan_jam']>=4)&(df['curah_hujan_mm']>40))|
         ((df['elevasi_m']<4)&(df['curah_hujan_mm']>30))|(df['laporan_warga']>=4)
     ).astype(int)
-
     FEATURES = ['curah_hujan_mm','kelembaban_pct','suhu_c','kecepatan_angin',
                 'durasi_hujan_jam','bulan','musim_hujan','laporan_warga','elevasi_m',
                 'tinggi_air_m','debit_sungai_m3s','indeks_risiko','hujan_ekstrem','kecamatan_enc']
-
     from sklearn.model_selection import train_test_split
     X = df[FEATURES]; y = df['banjir']
     X_tr, X_te, y_tr, y_te = train_test_split(X,y,test_size=0.2,random_state=42,stratify=y)
-    scaler = MinMaxScaler()
+    scaler  = MinMaxScaler()
     X_tr_sc = scaler.fit_transform(X_tr)
     X_te_sc = scaler.transform(X_te)
-
     rf = RandomForestClassifier(n_estimators=300,max_depth=15,min_samples_leaf=3,
                                  random_state=42,n_jobs=-1)
     rf.fit(X_tr_sc, y_tr)
     auc = roc_auc_score(y_te, rf.predict_proba(X_te_sc)[:,1])
     return rf, scaler, le, FEATURES, df, X_te_sc, y_te, auc
 
-# ── Predict helper ────────────────────────────────────────────
 def predict_kecamatan(rf, scaler, le, FEATURES, rr, rh, suhu, angin, laporan_extra=0):
     rows = []
     for kec in PRIORITAS_7:
-        elev = ELEVASI[kec]
-        bulan = 6
-        musim = 0
-        durasi = min(int(rr/3),12) if rr > 0 else 0
+        elev    = ELEVASI[kec]
+        bulan   = datetime.now().month
+        musim   = int(bulan in [11,12,1,2,3,4])
+        durasi  = min(int(rr/3),12) if rr > 0 else 0
         laporan = max(int(rr/15),0) + laporan_extra
-        tinggi = max((10-elev)/10*(rr/40+0.3), 0.2)
-        debit = tinggi*80
-        indeks = rr*0.35 + tinggi*0.30 + (10-elev)*0.20 + laporan*2*0.15
-        kec_e = le.transform([kec if kec in le.classes_ else le.classes_[0]])[0]
+        tinggi  = max((10-elev)/10*(rr/40+0.3), 0.2)
+        debit   = tinggi*80
+        indeks  = rr*0.35 + tinggi*0.30 + (10-elev)*0.20 + laporan*2*0.15
+        kec_e   = le.transform([kec if kec in le.classes_ else le.classes_[0]])[0]
         rows.append({
             'kecamatan':kec,'curah_hujan_mm':rr,'kelembaban_pct':rh,'suhu_c':suhu,
             'kecepatan_angin':angin,'durasi_hujan_jam':durasi,'bulan':bulan,
@@ -177,80 +242,115 @@ def predict_kecamatan(rf, scaler, le, FEATURES, rr, rh, suhu, angin, laporan_ext
             'indeks_risiko':round(indeks,2),'hujan_ekstrem':int(rr>100),'kecamatan_enc':kec_e,
         })
     dfp = pd.DataFrame(rows)
-    X = scaler.transform(dfp[FEATURES])
-    dfp['prob'] = (rf.predict_proba(X)[:,1]*100).round(1)
+    X   = scaler.transform(dfp[FEATURES])
+    dfp['prob']   = (rf.predict_proba(X)[:,1]*100).round(1)
     dfp['status'] = dfp['prob'].apply(lambda p:'🔴 KRITIS' if p>70 else '🟡 WASPADA' if p>40 else '🟢 AMAN')
     return dfp
 
-# ════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 # SIDEBAR
-# ════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 with st.sidebar:
     st.markdown("## 🌊 SmartFlood ID")
     st.markdown("<span style='color:#4fc3f7;font-size:.85rem'>Surabaya · Gemastik 2026</span>", unsafe_allow_html=True)
     st.divider()
 
-    # ── Upload BMKG ──
+    # ── Auto fetch cuaca real-time ──
+    weather = fetch_realtime_weather()
+    if weather["OK"]:
+        st.markdown(f"""<div class='rt-banner'>
+            🟢 <b>Real-time aktif</b> · {wmo_desc(weather['WMO'])}<br>
+            <span style='font-size:.75rem;color:#86efac'>Open-Meteo API · Update tiap 30 menit</span>
+        </div>""", unsafe_allow_html=True)
+        RT_RR    = weather["RR"]
+        RT_TAVG  = weather["TAVG"]
+        RT_RH    = weather["RH"]
+        RT_ANGIN = weather["ANGIN"]
+    else:
+        st.markdown("""<div style='background:#2a1a0a;border:1px solid #7c4a1e;border-radius:8px;
+            padding:.6rem 1rem;font-size:.8rem;color:#fbbf24;margin-bottom:.5rem'>
+            ⚠️ API cuaca tidak responsif — pakai data BMKG upload
+        </div>""", unsafe_allow_html=True)
+        RT_RR, RT_TAVG, RT_RH, RT_ANGIN = 0.0, 28.5, 75.0, 2.5
+
+    # ── Upload BMKG (override real-time) ──
     st.markdown("### 📂 Data BMKG Juanda")
     uploaded = st.file_uploader("Upload file Excel BMKG (.xlsx)", type=['xlsx'])
 
     if uploaded:
         df_bmkg, meta = load_bmkg_excel(uploaded)
-        st.success(f"✅ {len(df_bmkg)} hari data real")
+        st.success(f"✅ {len(df_bmkg)} hari data historis")
         st.caption(f"{df_bmkg.TANGGAL.min().strftime('%d %b')} – {df_bmkg.TANGGAL.max().strftime('%d %b %Y')}")
-        latest = df_bmkg.iloc[-1]
-        RR_VAL    = float(latest['RR'])
-        RH_VAL    = float(latest['RH_AVG'])
-        SUHU_VAL  = float(latest['TAVG']) if not pd.isna(latest['TAVG']) else 28.5
-        ANGIN_VAL = float(latest['FF_AVG'])
+        latest    = df_bmkg.iloc[-1]
+        # Jika ada file BMKG, nilai real-time TETAP dari Open-Meteo
+        # File BMKG dipakai untuk kalibrasi model & Tab 2
         RR_MUSIM  = df_bmkg[df_bmkg['TANGGAL'].dt.month.isin([11,12,1,2,3,4])]['RR'].mean()
         RR_KERING = df_bmkg[~df_bmkg['TANGGAL'].dt.month.isin([11,12,1,2,3,4])]['RR'].mean()
         RH_MEAN   = df_bmkg['RH_AVG'].mean()
         SUHU_MEAN = df_bmkg['TAVG'].mean()
         ANGIN_MEAN= df_bmkg['FF_AVG'].mean()
         DATA_REAL = True
-        DATA_LABEL= f"Data real BMKG {latest['TANGGAL'].strftime('%d %b %Y')}"
+        DATA_LABEL= f"Data real BMKG {latest['TANGGAL'].strftime('%d %b %Y')} + Open-Meteo live"
     else:
-        st.info("Upload file Excel BMKG untuk pakai data real.\n\nTanpa upload → pakai simulasi Surabaya.")
-        RR_VAL, RH_VAL, SUHU_VAL, ANGIN_VAL = 0.0, 75.0, 28.5, 2.5
+        st.info("Upload file Excel BMKG untuk kalibrasi model lebih akurat.\n\nPrediksi real-time tetap jalan dari Open-Meteo.")
         RR_MUSIM, RR_KERING = 12.0, 2.0
         RH_MEAN, SUHU_MEAN, ANGIN_MEAN = 78.0, 28.5, 2.5
         DATA_REAL = False
-        DATA_LABEL= "Simulasi kondisi Surabaya"
-        df_bmkg = None
+        DATA_LABEL= "Open-Meteo live · Surabaya"
+        df_bmkg   = None
 
     st.divider()
 
-    # ── Simulator input ──
-    st.markdown("### 🎛️ Simulasi Sensor Real-time")
-    sim_rr    = st.slider("Curah Hujan (mm)", 0.0, 200.0, float(round(RR_VAL,1)), 0.5)
-    sim_rh    = st.slider("Kelembaban (%)", 55.0, 100.0, float(round(RH_VAL,1)), 0.5)
-    sim_suhu  = st.slider("Suhu (°C)", 22.0, 38.0, float(round(SUHU_VAL,1)), 0.1)
-    sim_angin = st.slider("Kec. Angin (m/s)", 0.0, 15.0, float(round(ANGIN_VAL,1)), 0.1)
+    # ── Mode prediksi ──
+    st.markdown("### 🎛️ Mode Input")
+    mode = st.radio("", ["🌐 Real-time (otomatis)", "🎚️ Manual (slider)"], label_visibility="collapsed")
+
+    if mode == "🌐 Real-time (otomatis)":
+        sim_rr    = RT_RR
+        sim_rh    = RT_RH
+        sim_suhu  = RT_TAVG
+        sim_angin = RT_ANGIN
+        st.markdown(f"""<div style='font-size:.8rem;color:#b0c4d8;line-height:1.9;
+            background:#0f2540;border-radius:8px;padding:.8rem'>
+            🌧️ <b>Curah Hujan:</b> {sim_rr} mm<br>
+            💧 <b>Kelembaban:</b> {sim_rh}%<br>
+            🌡️ <b>Suhu:</b> {sim_suhu} °C<br>
+            💨 <b>Angin:</b> {sim_angin} m/s
+        </div>""", unsafe_allow_html=True)
+    else:
+        sim_rr    = st.slider("Curah Hujan (mm)", 0.0, 200.0, float(round(RT_RR,1)), 0.5)
+        sim_rh    = st.slider("Kelembaban (%)", 55.0, 100.0, float(round(RT_RH,1)), 0.5)
+        sim_suhu  = st.slider("Suhu (°C)", 22.0, 38.0, float(round(RT_TAVG,1)), 0.1)
+        sim_angin = st.slider("Kec. Angin (m/s)", 0.0, 15.0, float(round(RT_ANGIN,1)), 0.1)
 
     st.divider()
     st.markdown("""
     <div style='font-size:.72rem;color:#4a6a8a;line-height:1.6'>
     <span class='data-badge badge-bmkg'>BMKG Juanda</span>
     <span class='data-badge badge-peta'>PetaBencana</span>
-    <span class='data-badge badge-demnas'>DEMNAS BIG</span><br><br>
-    Sumber: dataonline.bmkg.go.id · petabencana.id · tanahair.indonesia.go.id
+    <span class='data-badge badge-demnas'>DEMNAS BIG</span>
+    <span class='data-badge badge-rt'>Open-Meteo</span><br><br>
+    Sumber: open-meteo.com · dataonline.bmkg.go.id<br>
+    petabencana.id · tanahair.indonesia.go.id
     </div>
     """, unsafe_allow_html=True)
 
-# ════════════════════════════════════════════════════════════════
-# MAIN
-# ════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
+# HEADER & MODEL TRAINING
+# ══════════════════════════════════════════════════════════════
 st.markdown("# 🌊 SmartFlood ID")
-st.markdown(f"<p style='color:#4a6a8a;margin-top:-.5rem'>Sistem Prediksi Banjir Real-time Berbasis Big Data · Kota Surabaya &nbsp;|&nbsp; {DATA_LABEL}</p>", unsafe_allow_html=True)
+rt_badge = "🟢 Live" if weather["OK"] else "🟡 Cached"
+st.markdown(
+    f"<p style='color:#4a6a8a;margin-top:-.5rem'>"
+    f"Sistem Prediksi Banjir Real-time Berbasis Big Data · Kota Surabaya "
+    f"&nbsp;|&nbsp; {DATA_LABEL} &nbsp;<b style='color:#4ade80'>{rt_badge}</b></p>",
+    unsafe_allow_html=True)
 
-# ── Train model ──
 with st.spinner("Melatih model ML..."):
     rf, scaler, le, FEATURES, df_train, X_te_sc, y_te, auc = train_model(
-        RR_MUSIM, RR_KERING, RH_MEAN, SUHU_MEAN, ANGIN_MEAN
-    )
+        RR_MUSIM, RR_KERING, RH_MEAN, SUHU_MEAN, ANGIN_MEAN)
 
-# ── Metric cards ──
+# Metric cards
 peta_count, peta_ok = fetch_petabencana()
 col1,col2,col3,col4 = st.columns(4)
 with col1:
@@ -277,14 +377,24 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ── Tabs ──
+# ══════════════════════════════════════════════════════════════
+# TABS
+# ══════════════════════════════════════════════════════════════
 tab1, tab2, tab3, tab4 = st.tabs(["🗺️ Prediksi Real-time", "📊 Data BMKG Real", "🤖 Evaluasi Model", "📈 Eksplorasi Data"])
 
 # ════════════════════════
-# TAB 1 — Prediksi
+# TAB 1 — Prediksi + Peta
 # ════════════════════════
 with tab1:
     dfp = predict_kecamatan(rf, scaler, le, FEATURES, sim_rr, sim_rh, sim_suhu, sim_angin)
+
+    # Banner sumber data
+    src_txt = weather["SRC"] if weather["OK"] else "mode manual/fallback"
+    st.markdown(f"""<div class='rt-banner'>
+        📡 Sumber data aktif: <b>Open-Meteo API</b> (cuaca live) ·
+        <b>DEMNAS BIG</b> (elevasi) · <b>PetaBencana.id</b> (laporan warga) ·
+        <b>BMKG Juanda</b> (historis) &nbsp;—&nbsp; Input: {src_txt}
+    </div>""", unsafe_allow_html=True)
 
     col_a, col_b = st.columns([1.6, 1])
 
@@ -293,10 +403,10 @@ with tab1:
         fig, ax = plt.subplots(figsize=(9,5))
         fig.patch.set_facecolor('#0b1120')
         ax.set_facecolor('#0f1929')
-        probs = dfp['prob'].values
-        kecs  = dfp['kecamatan'].values
+        probs  = dfp['prob'].values
+        kecs   = dfp['kecamatan'].values
         colors = ['#e24b4a' if p>70 else '#ef9f27' if p>40 else '#4ade80' for p in probs]
-        bars = ax.barh(kecs, probs, color=colors, edgecolor='#0b1120', height=0.55)
+        bars   = ax.barh(kecs, probs, color=colors, edgecolor='#0b1120', height=0.55)
         ax.axvline(70, color='#e24b4a', linestyle='--', lw=1.2, alpha=0.7)
         ax.axvline(40, color='#ef9f27', linestyle='--', lw=1.2, alpha=0.7)
         for bar, p in zip(bars, probs):
@@ -305,13 +415,10 @@ with tab1:
         ax.set_xlim(0, 115)
         ax.set_xlabel('Probabilitas Banjir (%)', color='#7a9dbf', fontsize=11)
         ax.tick_params(colors='#7a9dbf', labelsize=11)
-        for spine in ax.spines.values():
-            spine.set_edgecolor('#1e3050')
-        patches = [
-            mpatches.Patch(color='#e24b4a', label='Kritis > 70%'),
-            mpatches.Patch(color='#ef9f27', label='Waspada > 40%'),
-            mpatches.Patch(color='#4ade80', label='Aman'),
-        ]
+        for spine in ax.spines.values(): spine.set_edgecolor('#1e3050')
+        patches = [mpatches.Patch(color='#e24b4a', label='Kritis >70%'),
+                   mpatches.Patch(color='#ef9f27', label='Waspada >40%'),
+                   mpatches.Patch(color='#4ade80', label='Aman')]
         ax.legend(handles=patches, loc='lower right', facecolor='#0f2540',
                   labelcolor='#b0c4d8', fontsize=9, edgecolor='#1e3050')
         plt.tight_layout()
@@ -324,10 +431,10 @@ with tab1:
             cls = 'status-kritis' if row['prob']>70 else 'status-waspada' if row['prob']>40 else 'status-aman'
             st.markdown(f"""<div class='{cls}' style='margin-bottom:6px'>
                 <b>{row['kecamatan']}</b> &nbsp; {row['status']}<br>
-                <span style='font-size:.8rem'>{row['prob']:.1f}% · elevasi {row['elevasi_m']}m</span>
+                <span style='font-size:.8rem'>{row['prob']:.1f}% · elevasi {row['elevasi_m']}m dpl</span>
             </div>""", unsafe_allow_html=True)
 
-    # Detail tabel
+    # Tabel detail
     st.markdown("#### Detail Fitur per Kecamatan")
     show_cols = ['kecamatan','curah_hujan_mm','kelembaban_pct','tinggi_air_m',
                  'laporan_warga','elevasi_m','indeks_risiko','prob','status']
@@ -338,113 +445,120 @@ with tab1:
         'prob':'Prob. Banjir (%)','status':'Status'
     }), use_container_width=True)
 
-    # ── Peta Geospasial DEMNAS ──
+    # ══ PETA GEOSPASIAL DEMNAS ══
     st.markdown("---")
-    st.markdown("#### 🗺️ Peta Risiko Banjir — Kecamatan Surabaya (DEMNAS BIG)")
-    st.caption("Elevasi dan risiko banjir per kecamatan berdasarkan data Digital Elevation Model (DEMNAS) Badan Informasi Geospasial.")
+    st.markdown("#### 🗺️ Peta Risiko Banjir — DEMNAS BIG (Geospasial)")
+    st.caption("Posisi kecamatan berdasarkan koordinat GPS real · Elevasi dari Digital Elevation Model Nasional (resolusi 8m)")
 
-    # Koordinat pusat tiap kecamatan (lat/lon real Surabaya)
-    KORD = {
-        'Benowo':     (-7.2627, 112.6521),
-        'Pakal':      (-7.2512, 112.6728),
-        'Tandes':     (-7.2391, 112.6945),
-        'Lakarsantri':(-7.3002, 112.6612),
-        'Wonokromo':  (-7.3090, 112.7348),
-        'Rungkut':    (-7.3201, 112.7891),
-        'Sukolilo':   (-7.2872, 112.7980),
-    }
-
+    # Build map data
     map_rows = []
-    for _, row in dfp.iterrows():
-        kec = row['kecamatan']
-        if kec in KORD:
-            lat, lon = KORD[kec]
-            map_rows.append({
-                'lat': lat, 'lon': lon,
-                'kecamatan': kec,
-                'prob': row['prob'],
-                'elevasi': row['elevasi_m'],
-                'status': row['status'],
-                'tinggi_air': row['tinggi_air_m'],
-            })
+    prob_map = dict(zip(dfp['kecamatan'], dfp['prob']))
+    for kec, (lat, lon) in KORD.items():
+        p = prob_map.get(kec, 0)
+        map_rows.append({'lat':lat,'lon':lon,'kecamatan':kec,
+                         'prob':p,'elevasi':ELEVASI[kec]})
     df_map = pd.DataFrame(map_rows)
 
-    # SVG peta bubble sederhana (tidak butuh library tambahan)
-    col_map, col_leg = st.columns([2, 1])
-    with col_map:
-        # Normalize coords to SVG viewport
-        lats  = [r[0] for r in KORD.values()]
-        lons  = [r[1] for r in KORD.values()]
-        lat_min, lat_max = min(lats)-0.02, max(lats)+0.02
-        lon_min, lon_max = min(lons)-0.02, max(lons)+0.02
+    # SVG peta bubble dengan label nama jelas
+    lats     = [v[0] for v in KORD.values()]
+    lons     = [v[1] for v in KORD.values()]
+    lat_min  = min(lats)-0.025; lat_max = max(lats)+0.025
+    lon_min  = min(lons)-0.025; lon_max = max(lons)+0.025
 
-        def to_svg(lat, lon, w=520, h=380):
-            x = (lon - lon_min)/(lon_max - lon_min) * w
-            y = (1 - (lat - lat_min)/(lat_max - lat_min)) * h
-            return round(x,1), round(y,1)
+    def to_svg(lat, lon, w=600, h=400):
+        x = (lon - lon_min)/(lon_max - lon_min) * w
+        y = (1 - (lat - lat_min)/(lat_max - lat_min)) * h
+        return round(x,1), round(y,1)
 
-        def risk_color(p):
-            if p > 70: return '#e24b4a'
-            if p > 40: return '#ef9f27'
-            return '#4ade80'
+    def risk_color(p):
+        if p > 70: return '#e24b4a'
+        if p > 40: return '#ef9f27'
+        return '#4ade80'
 
-        circles = ''
-        labels  = ''
-        for _, r in df_map.iterrows():
-            x, y = to_svg(r['lat'], r['lon'])
-            col  = risk_color(r['prob'])
-            rad  = max(22, min(40, int(r['prob']/2.2)))
-            circles += f'<circle cx="{x}" cy="{y}" r="{rad}" fill="{col}" fill-opacity="0.82" stroke="#0b1120" stroke-width="1.5"/>\n'
-            labels  += f'<text x="{x}" y="{y-4}" text-anchor="middle" font-size="9" fill="#e8f4fd" font-weight="bold">{r["kecamatan"]}</text>\n'
-            labels  += f'<text x="{x}" y="{y+9}" text-anchor="middle" font-size="10" fill="#ffffff" font-weight="bold">{r["prob"]:.0f}%</text>\n'
-            labels  += f'<text x="{x}" y="{y+20}" text-anchor="middle" font-size="8" fill="#b0c4d8">{r["elevasi"]}m dpl</text>\n'
+    # Build SVG elements
+    circles = ''; labels = ''
+    for _, r in df_map.iterrows():
+        x, y = to_svg(r['lat'], r['lon'])
+        col  = risk_color(r['prob'])
+        rad  = max(26, min(44, int(r['prob']/2) + 18))
+        # shadow
+        circles += f'<circle cx="{x+2}" cy="{y+2}" r="{rad}" fill="#000" fill-opacity="0.25"/>\n'
+        # main circle
+        circles += f'<circle cx="{x}" cy="{y}" r="{rad}" fill="{col}" fill-opacity="0.88" stroke="#0b1120" stroke-width="2"/>\n'
+        # pulsing ring jika kritis
+        if r['prob'] > 70:
+            circles += f'<circle cx="{x}" cy="{y}" r="{rad+6}" fill="none" stroke="{col}" stroke-width="1.5" stroke-opacity="0.4"/>\n'
+        # Label: nama kecamatan
+        labels += f'<text x="{x}" y="{y-6}" text-anchor="middle" font-size="9.5" fill="#ffffff" font-weight="bold" style="text-shadow:0 1px 3px #000">{r["kecamatan"]}</text>\n'
+        # Label: persentase
+        labels += f'<text x="{x}" y="{y+7}" text-anchor="middle" font-size="11" fill="#ffffff" font-weight="bold">{r["prob"]:.0f}%</text>\n'
+        # Label: elevasi
+        labels += f'<text x="{x}" y="{y+19}" text-anchor="middle" font-size="8" fill="#d0e8ff">{r["elevasi"]}m dpl</text>\n'
 
-        svg = f"""<svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" style="background:#0f1929;border-radius:12px;border:1px solid #1e3050;width:100%">
-  <text x="10" y="22" font-size="11" fill="#7a9dbf">Surabaya — Peta Risiko Banjir (DEMNAS BIG)</text>
-  <text x="10" y="36" font-size="9" fill="#4a6a8a">Ukuran lingkaran = tingkat risiko · Warna = status</text>
+    svg_map = f"""<svg viewBox="0 0 600 430" xmlns="http://www.w3.org/2000/svg"
+      style="background:linear-gradient(180deg,#0a1628 0%,#0f1e38 100%);
+             border-radius:14px;border:1px solid #1e3050;width:100%">
+  <!-- Grid lines -->
+  <line x1="0" y1="200" x2="600" y2="200" stroke="#1e3050" stroke-width="0.5" stroke-dasharray="4"/>
+  <line x1="300" y1="0" x2="300" y2="430" stroke="#1e3050" stroke-width="0.5" stroke-dasharray="4"/>
+  <!-- Title -->
+  <text x="12" y="20" font-size="11" fill="#7a9dbf" font-weight="bold">Surabaya — Peta Risiko Banjir Real-time</text>
+  <text x="12" y="34" font-size="8.5" fill="#4a6a8a">Sumber elevasi: DEMNAS BIG · Resolusi 8 meter · Koordinat GPS kecamatan</text>
+  <!-- Compass -->
+  <text x="575" y="30" font-size="11" fill="#4a6a8a" text-anchor="middle">N</text>
+  <line x1="575" y1="33" x2="575" y2="48" stroke="#4a6a8a" stroke-width="1.5"/>
+  <polygon points="575,33 572,44 575,41 578,44" fill="#4a6a8a"/>
   {circles}
   {labels}
   <!-- Legend -->
-  <rect x="370" y="330" width="140" height="44" rx="6" fill="#0b1120" fill-opacity="0.8"/>
-  <circle cx="383" cy="343" r="6" fill="#e24b4a"/><text x="393" y="347" font-size="9" fill="#b0c4d8">Kritis &gt;70%</text>
-  <circle cx="383" cy="358" r="6" fill="#ef9f27"/><text x="393" y="362" font-size="9" fill="#b0c4d8">Waspada &gt;40%</text>
-  <circle cx="445" cy="343" r="6" fill="#4ade80"/><text x="455" y="347" font-size="9" fill="#b0c4d8">Aman</text>
+  <rect x="10" y="385" width="290" height="38" rx="6" fill="#0b1120" fill-opacity="0.9" stroke="#1e3050" stroke-width="1"/>
+  <circle cx="27" cy="400" r="7" fill="#e24b4a"/>
+  <text x="40" y="404" font-size="9" fill="#b0c4d8">Kritis &gt;70%</text>
+  <circle cx="105" cy="400" r="7" fill="#ef9f27"/>
+  <text x="118" y="404" font-size="9" fill="#b0c4d8">Waspada &gt;40%</text>
+  <circle cx="195" cy="400" r="7" fill="#4ade80"/>
+  <text x="208" y="404" font-size="9" fill="#b0c4d8">Aman ≤40%</text>
+  <text x="27" y="418" font-size="8" fill="#4a6a8a">Ukuran = tingkat risiko · Input: {src_txt[:30]}</text>
+  <!-- Scale bar -->
+  <line x1="450" y1="415" x2="570" y2="415" stroke="#4a6a8a" stroke-width="1.5"/>
+  <line x1="450" y1="412" x2="450" y2="418" stroke="#4a6a8a" stroke-width="1.5"/>
+  <line x1="570" y1="412" x2="570" y2="418" stroke="#4a6a8a" stroke-width="1.5"/>
+  <text x="510" y="410" font-size="8" fill="#4a6a8a" text-anchor="middle">~10 km</text>
 </svg>"""
-        st.markdown(svg, unsafe_allow_html=True)
 
-    with col_leg:
-        st.markdown("**📍 Sumber Geospasial:**")
-        st.markdown("""
-<div style='font-size:.82rem;color:#b0c4d8;line-height:2'>
-<span class='data-badge badge-demnas'>DEMNAS BIG</span><br>
-Elevasi: Digital Elevation Model Nasional<br>
-Resolusi 8 meter · Seluruh wilayah Surabaya<br><br>
-<b>Koordinat kecamatan:</b><br>
-</div>
-""", unsafe_allow_html=True)
-        for _, r in df_map.iterrows():
-            col_s = '#f87171' if r['prob']>70 else '#fbbf24' if r['prob']>40 else '#86efac'
-            st.markdown(f"<div style='font-size:.78rem;color:{col_s};margin-bottom:3px'>📍 <b>{r['kecamatan']}</b> — {r['elevasi']}m dpl · {r['prob']:.0f}%</div>", unsafe_allow_html=True)
+    col_map, col_rt = st.columns([2.2, 1])
+    with col_map:
+        st.markdown(svg_map, unsafe_allow_html=True)
 
-    # ── PetaBencana Live ──
-    st.markdown("---")
-    st.markdown("#### 📱 Laporan Warga Real-time — PetaBencana.id")
-    col_p1, col_p2 = st.columns([1,2])
-    with col_p1:
-        peta_color = '#4ade80' if not peta_ok else ('#e24b4a' if peta_count>5 else '#ef9f27' if peta_count>0 else '#4ade80')
-        st.markdown(f"""<div class='metric-card' style='text-align:center;padding:1.5rem'>
-            <div style='font-size:3rem;font-weight:700;color:{peta_color}'>{peta_count if peta_ok else '–'}</div>
-            <div style='font-size:.8rem;color:#7a9dbf;margin-top:6px'>LAPORAN BANJIR AKTIF<br>7 hari terakhir · Surabaya</div>
-            <div style='font-size:.7rem;color:#4a6a8a;margin-top:8px'>{'✅ API Terhubung' if peta_ok else '⚠️ API tidak responsif (fallback mode)'}</div>
+    with col_rt:
+        st.markdown("**📡 Data Sumber 3 & 4:**")
+        # DEMNAS info
+        st.markdown("""<div style='background:#0d3322;border:1px solid #166534;border-radius:8px;
+            padding:.8rem;margin-bottom:.6rem;font-size:.8rem;color:#b0c4d8'>
+            <b style='color:#4ade80'>🟢 DEMNAS BIG</b><br>
+            Digital Elevation Model Nasional<br>
+            Resolusi 8m · BIG (tanahair.indonesia.go.id)<br>
+            Digunakan: fitur elevasi per kecamatan (statis)
         </div>""", unsafe_allow_html=True)
-    with col_p2:
-        st.markdown("""<div style='background:#0f2540;border:1px solid #1e4a7a;border-radius:10px;padding:1rem;font-size:.83rem;color:#b0c4d8;line-height:1.8'>
-        <b style='color:#e8f4fd'>Tentang PetaBencana.id</b><br>
-        Platform crowdsourcing laporan bencana real-time yang digunakan BNPB.<br>
-        Warga melaporkan genangan lewat Twitter/X, Telegram, atau web → dikonfirmasi &amp; ditampilkan di peta.<br><br>
-        <b style='color:#a78bfa'>Endpoint API yang digunakan:</b><br>
-        <code style='background:#0b1120;padding:2px 6px;border-radius:4px;font-size:.78rem'>data.petabencana.id/reports?city=surabaya&amp;timewindow=168</code><br><br>
-        Integrasi ini memungkinkan SmartFlood ID memverifikasi prediksi model dengan laporan banjir nyata dari warga Surabaya.
+        # PetaBencana info
+        peta_col = '#4ade80' if peta_ok else '#fbbf24'
+        peta_status = f"✅ {peta_count} laporan aktif" if peta_ok else "⚠️ API fallback mode"
+        st.markdown(f"""<div style='background:#1a0d3a;border:1px solid #5b32d0;border-radius:8px;
+            padding:.8rem;margin-bottom:.6rem;font-size:.8rem;color:#b0c4d8'>
+            <b style='color:#a78bfa'>🟣 PetaBencana.id</b><br>
+            Crowdsourcing laporan banjir warga<br>
+            API: data.petabencana.id · 7 hari terakhir<br>
+            Status: <b style='color:{peta_col}'>{peta_status}</b>
+        </div>""", unsafe_allow_html=True)
+        # Open-Meteo info
+        rt_col = '#4ade80' if weather["OK"] else '#fbbf24'
+        rt_status = f"✅ {wmo_desc(weather['WMO'])} · {weather['TAVG']}°C" if weather["OK"] else "⚠️ Tidak responsif"
+        st.markdown(f"""<div style='background:#2d1a0a;border:1px solid #b45309;border-radius:8px;
+            padding:.8rem;font-size:.8rem;color:#b0c4d8'>
+            <b style='color:#fbbf24'>🟡 Open-Meteo API</b><br>
+            Cuaca real-time · Gratis tanpa API key<br>
+            Lat -7.26 · Lon 112.75 (Surabaya)<br>
+            Status: <b style='color:{rt_col}'>{rt_status}</b>
         </div>""", unsafe_allow_html=True)
 
 # ════════════════════════
@@ -453,16 +567,13 @@ Resolusi 8 meter · Seluruh wilayah Surabaya<br><br>
 with tab2:
     if DATA_REAL and df_bmkg is not None:
         st.markdown(f"#### Data Real BMKG Stasiun Juanda — {len(df_bmkg)} Hari")
-
         plt.rcParams.update({'axes.facecolor':'#0f1929','figure.facecolor':'#0b1120',
                              'text.color':'#b0c4d8','axes.labelcolor':'#7a9dbf',
                              'xtick.color':'#7a9dbf','ytick.color':'#7a9dbf',
                              'axes.edgecolor':'#1e3050','grid.color':'#1e3050'})
-
         fig, axes = plt.subplots(2, 3, figsize=(14,8))
         fig.suptitle('Data Real BMKG Stasiun Juanda', color='#e8f4fd', fontsize=13, fontweight='bold')
 
-        # Curah hujan
         axes[0,0].bar(df_bmkg['TANGGAL'], df_bmkg['RR'], color='#378ADD', edgecolor='#0b1120', width=0.8)
         axes[0,0].axhline(20, color='#ef9f27', linestyle='--', lw=1, alpha=0.7, label='Sedang (20mm)')
         axes[0,0].axhline(50, color='#e24b4a', linestyle='--', lw=1, alpha=0.7, label='Lebat (50mm)')
@@ -470,38 +581,33 @@ with tab2:
         axes[0,0].legend(fontsize=8, facecolor='#0f2540', labelcolor='#b0c4d8', edgecolor='#1e3050')
         axes[0,0].tick_params(axis='x', rotation=45, labelsize=7)
 
-        # Suhu
         axes[0,1].fill_between(df_bmkg['TANGGAL'], df_bmkg['TN'], df_bmkg['TX'], alpha=0.3, color='#e24b4a')
         axes[0,1].plot(df_bmkg['TANGGAL'], df_bmkg['TAVG'], color='#e24b4a', lw=2)
         axes[0,1].set_title('Suhu Harian (°C)', color='#e8f4fd', fontweight='bold')
         axes[0,1].tick_params(axis='x', rotation=45, labelsize=7)
 
-        # Kelembaban
         axes[0,2].plot(df_bmkg['TANGGAL'], df_bmkg['RH_AVG'], color='#a78bfa', lw=2)
         axes[0,2].fill_between(df_bmkg['TANGGAL'], df_bmkg['RH_AVG'], alpha=0.2, color='#a78bfa')
         axes[0,2].set_title('Kelembaban (%)', color='#e8f4fd', fontweight='bold')
         axes[0,2].tick_params(axis='x', rotation=45, labelsize=7)
 
-        # Angin
         axes[1,0].plot(df_bmkg['TANGGAL'], df_bmkg['FF_AVG'], color='#4ade80', lw=2, label='Rata-rata')
         axes[1,0].plot(df_bmkg['TANGGAL'], df_bmkg['FF_X'], color='#4ade80', lw=1, linestyle='--', alpha=0.5, label='Maks')
         axes[1,0].set_title('Kecepatan Angin (m/s)', color='#e8f4fd', fontweight='bold')
         axes[1,0].legend(fontsize=8, facecolor='#0f2540', labelcolor='#b0c4d8', edgecolor='#1e3050')
         axes[1,0].tick_params(axis='x', rotation=45, labelsize=7)
 
-        # Penyinaran vs Curah hujan
         colors_sc = ['#e24b4a' if r>20 else '#ef9f27' if r>5 else '#4ade80' for r in df_bmkg['RR']]
         axes[1,1].scatter(df_bmkg['SS'], df_bmkg['RR'], c=colors_sc, s=60, edgecolor='#0b1120', linewidth=0.5)
         axes[1,1].set_xlabel('Penyinaran Matahari (jam)')
         axes[1,1].set_ylabel('Curah Hujan (mm)')
         axes[1,1].set_title('Penyinaran vs Curah Hujan', color='#e8f4fd', fontweight='bold')
 
-        # Statistik tabel
         axes[1,2].axis('off')
-        stats = df_bmkg[['TN','TX','TAVG','RH_AVG','RR','FF_AVG']].describe().round(1)
+        stats  = df_bmkg[['TN','TX','TAVG','RH_AVG','RR','FF_AVG']].describe().round(1)
         labels_map = {'TN':'Suhu Min (°C)','TX':'Suhu Maks (°C)','TAVG':'Suhu Rata (°C)',
                       'RH_AVG':'Kelembaban (%)','RR':'Curah Hujan (mm)','FF_AVG':'Angin (m/s)'}
-        tdata = [['Parameter','Min','Maks','Rata-rata']]
+        tdata  = [['Parameter','Min','Maks','Rata-rata']]
         for col in ['TN','TX','TAVG','RH_AVG','RR','FF_AVG']:
             tdata.append([labels_map[col],str(stats.loc['min',col]),str(stats.loc['max',col]),str(stats.loc['mean',col])])
         tbl = axes[1,2].table(cellText=tdata[1:], colLabels=tdata[0], cellLoc='center', loc='center')
@@ -511,42 +617,41 @@ with tab2:
             cell.set_text_props(color='#b0c4d8' if r>0 else '#e8f4fd')
             cell.set_edgecolor('#1e3050')
         axes[1,2].set_title('Statistik Ringkasan', color='#e8f4fd', fontweight='bold')
-
         plt.tight_layout()
         st.pyplot(fig)
         plt.close()
 
-        # ── Validasi harian ──
+        # Validasi harian
         st.markdown("#### Prediksi Risiko Harian dari Data Real BMKG")
         rows_val = []
         for _, row_b in df_bmkg.iterrows():
-            rr = float(row_b['RR']); rh = float(row_b['RH_AVG'])
-            suhu_v = float(row_b['TAVG']) if not pd.isna(row_b['TAVG']) else 28.5
+            rr_v = float(row_b['RR']); rh_v = float(row_b['RH_AVG'])
+            suhu_v  = float(row_b['TAVG']) if not pd.isna(row_b['TAVG']) else 28.5
             angin_v = float(row_b['FF_AVG'])
             for kec in PRIORITAS_7:
-                elev = ELEVASI[kec]
-                durasi = min(int(rr/3),12) if rr>0 else 0
-                laporan = int(rr/15) if rr>20 else 0
-                tinggi = max((10-elev)/10*(rr/40+0.3), 0.2)
-                debit = tinggi*80
-                indeks = rr*0.35+tinggi*0.30+(10-elev)*0.20+laporan*2*0.15
-                kec_e = le.transform([kec if kec in le.classes_ else le.classes_[0]])[0]
+                elev    = ELEVASI[kec]
+                durasi  = min(int(rr_v/3),12) if rr_v>0 else 0
+                laporan = int(rr_v/15) if rr_v>20 else 0
+                tinggi  = max((10-elev)/10*(rr_v/40+0.3), 0.2)
+                debit   = tinggi*80
+                indeks  = rr_v*0.35+tinggi*0.30+(10-elev)*0.20+laporan*2*0.15
+                kec_e   = le.transform([kec if kec in le.classes_ else le.classes_[0]])[0]
                 rows_val.append({
                     'tanggal':row_b['TANGGAL'],'kecamatan':kec,
-                    'curah_hujan_mm':rr,'kelembaban_pct':rh,'suhu_c':suhu_v,
+                    'curah_hujan_mm':rr_v,'kelembaban_pct':rh_v,'suhu_c':suhu_v,
                     'kecepatan_angin':angin_v,'durasi_hujan_jam':durasi,
-                    'bulan':row_b['TANGGAL'].month,'musim_hujan':int(row_b['TANGGAL'].month in [11,12,1,2,3,4]),
+                    'bulan':row_b['TANGGAL'].month,
+                    'musim_hujan':int(row_b['TANGGAL'].month in [11,12,1,2,3,4]),
                     'laporan_warga':laporan,'elevasi_m':elev,'tinggi_air_m':round(tinggi,2),
                     'debit_sungai_m3s':round(debit,1),'indeks_risiko':round(indeks,2),
-                    'hujan_ekstrem':int(rr>100),'kecamatan_enc':kec_e,
+                    'hujan_ekstrem':int(rr_v>100),'kecamatan_enc':kec_e,
                 })
         df_val = pd.DataFrame(rows_val)
-        X_val = scaler.transform(df_val[FEATURES])
+        X_val  = scaler.transform(df_val[FEATURES])
         df_val['prob'] = (rf.predict_proba(X_val)[:,1]*100).round(1)
 
         fig2, ax2 = plt.subplots(figsize=(13,5))
-        fig2.patch.set_facecolor('#0b1120')
-        ax2.set_facecolor('#0f1929')
+        fig2.patch.set_facecolor('#0b1120'); ax2.set_facecolor('#0f1929')
         kec_colors = {'Benowo':'#e24b4a','Pakal':'#ef9f27','Tandes':'#fbbf24',
                       'Lakarsantri':'#4ade80','Wonokromo':'#60a5fa',
                       'Rungkut':'#a78bfa','Sukolilo':'#34d399'}
@@ -557,59 +662,46 @@ with tab2:
         ax2.axhline(70, color='#e24b4a', linestyle='--', lw=1.5, alpha=0.7, label='Kritis (70%)')
         ax2.axhline(40, color='#ef9f27', linestyle='--', lw=1.5, alpha=0.7, label='Waspada (40%)')
         ax2.set_ylabel('Probabilitas Banjir (%)', color='#7a9dbf')
-        ax2.set_title('Validasi: Prediksi Harian per Kecamatan (Data Real BMKG Juanda)',
-                      color='#e8f4fd', fontweight='bold')
-        ax2.legend(loc='upper right', facecolor='#0f2540', labelcolor='#b0c4d8',
-                   edgecolor='#1e3050', fontsize=8, ncol=2)
-        ax2.tick_params(colors='#7a9dbf')
-        ax2.set_ylim(0,105)
+        ax2.set_title('Validasi: Prediksi Harian per Kecamatan (Data Real BMKG Juanda)', color='#e8f4fd', fontweight='bold')
+        ax2.legend(loc='upper right', facecolor='#0f2540', labelcolor='#b0c4d8', edgecolor='#1e3050', fontsize=8, ncol=2)
+        ax2.tick_params(colors='#7a9dbf'); ax2.set_ylim(0,105)
         for spine in ax2.spines.values(): spine.set_edgecolor('#1e3050')
-        plt.tight_layout()
-        st.pyplot(fig2)
-        plt.close()
+        plt.tight_layout(); st.pyplot(fig2); plt.close()
 
-        # Top risk
         top = df_val.nlargest(5,'prob')[['tanggal','kecamatan','curah_hujan_mm','prob']].copy()
         top['tanggal'] = top['tanggal'].dt.strftime('%d %b %Y')
-        top.columns = ['Tanggal','Kecamatan','Curah Hujan (mm)','Prob. Banjir (%)']
+        top.columns    = ['Tanggal','Kecamatan','Curah Hujan (mm)','Prob. Banjir (%)']
         st.markdown("**Top 5 Hari/Kecamatan Risiko Tertinggi:**")
         st.dataframe(top, use_container_width=True)
     else:
-        st.info("Upload file Excel BMKG di sidebar untuk melihat analisis data real.")
+        st.info("Upload file Excel BMKG di sidebar untuk melihat analisis data historis 31 hari.")
 
 # ════════════════════════
 # TAB 3 — Evaluasi Model
 # ════════════════════════
 with tab3:
     st.markdown("#### Evaluasi Model Machine Learning")
-    from sklearn.ensemble import GradientBoostingClassifier
     from sklearn.model_selection import train_test_split
-
     X = df_train[FEATURES]; y = df_train['banjir']
     X_tr, X_te2, y_tr2, y_te2 = train_test_split(X,y,test_size=0.2,random_state=42,stratify=y)
     X_te2_sc = scaler.transform(X_te2)
-    rf_prob = rf.predict_proba(X_te2_sc)[:,1]
-    rf_pred = rf.predict(X_te2_sc)
-    rf_auc = roc_auc_score(y_te2, rf_prob)
+    rf_prob  = rf.predict_proba(X_te2_sc)[:,1]
+    rf_pred  = rf.predict(X_te2_sc)
+    rf_auc   = roc_auc_score(y_te2, rf_prob)
 
     plt.rcParams.update({'axes.facecolor':'#0f1929','figure.facecolor':'#0b1120',
                          'text.color':'#b0c4d8','axes.labelcolor':'#7a9dbf',
-                         'xtick.color':'#7a9dbf','ytick.color':'#7a9dbf',
-                         'axes.edgecolor':'#1e3050'})
-
+                         'xtick.color':'#7a9dbf','ytick.color':'#7a9dbf','axes.edgecolor':'#1e3050'})
     fig, axes = plt.subplots(1,3,figsize=(15,5))
     fig.suptitle(f'Evaluasi Model Random Forest — AUC: {rf_auc:.4f}', color='#e8f4fd', fontsize=13, fontweight='bold')
 
-    # Confusion matrix
     cm = confusion_matrix(y_te2, rf_pred)
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=axes[0],
-                xticklabels=['Tidak Banjir','Banjir'],
-                yticklabels=['Tidak Banjir','Banjir'],
+                xticklabels=['Tidak Banjir','Banjir'], yticklabels=['Tidak Banjir','Banjir'],
                 cbar_kws={'shrink':0.8})
-    axes[0].set_title(f'Confusion Matrix', color='#e8f4fd', fontweight='bold')
+    axes[0].set_title('Confusion Matrix', color='#e8f4fd', fontweight='bold')
     axes[0].set_ylabel('Aktual'); axes[0].set_xlabel('Prediksi')
 
-    # Feature importance
     fi = pd.Series(rf.feature_importances_, index=FEATURES).sort_values(ascending=True)
     sumber_color = {
         'curah_hujan_mm':'#378ADD','kelembaban_pct':'#378ADD','suhu_c':'#378ADD',
@@ -623,18 +715,13 @@ with tab3:
                        color='#e8f4fd', fontweight='bold', fontsize=9)
     axes[1].set_xlabel('Importance Score')
 
-    # ROC curve
     fpr, tpr, _ = roc_curve(y_te2, rf_prob)
     axes[2].plot(fpr, tpr, color='#378ADD', lw=2.5, label=f'RF (AUC={rf_auc:.3f})')
     axes[2].plot([0,1],[0,1],'--',color='#4a6a8a',lw=1)
-    axes[2].set_xlabel('False Positive Rate')
-    axes[2].set_ylabel('True Positive Rate')
+    axes[2].set_xlabel('False Positive Rate'); axes[2].set_ylabel('True Positive Rate')
     axes[2].set_title('ROC Curve', color='#e8f4fd', fontweight='bold')
     axes[2].legend(facecolor='#0f2540', labelcolor='#b0c4d8', edgecolor='#1e3050')
-
-    plt.tight_layout()
-    st.pyplot(fig)
-    plt.close()
+    plt.tight_layout(); st.pyplot(fig); plt.close()
 
     col_e1, col_e2 = st.columns(2)
     with col_e1:
@@ -661,11 +748,9 @@ with tab3:
 # ════════════════════════
 with tab4:
     st.markdown("#### Eksplorasi Dataset Training")
-
     plt.rcParams.update({'axes.facecolor':'#0f1929','figure.facecolor':'#0b1120',
                          'text.color':'#b0c4d8','axes.labelcolor':'#7a9dbf',
                          'xtick.color':'#7a9dbf','ytick.color':'#7a9dbf','axes.edgecolor':'#1e3050'})
-
     fig, axes = plt.subplots(2,3,figsize=(14,9))
     fig.suptitle('Eksplorasi Data Terintegrasi (BMKG + PetaBencana + DEMNAS)',
                  color='#e8f4fd', fontsize=13, fontweight='bold')
@@ -688,18 +773,16 @@ with tab4:
     axes[0,2].scatter(eb['elevasi'], eb['banjir_pct']*100, s=100, color='#60a5fa', edgecolor='#0b1120', lw=1.5)
     for _, row in eb.iterrows():
         axes[0,2].annotate(row['kecamatan'], (row['elevasi'],row['banjir_pct']*100), fontsize=7, color='#b0c4d8')
-    axes[0,2].set_xlabel('Elevasi (m dpl) — DEMNAS')
-    axes[0,2].set_ylabel('Frekuensi Banjir (%)')
+    axes[0,2].set_xlabel('Elevasi (m dpl) — DEMNAS'); axes[0,2].set_ylabel('Frekuensi Banjir (%)')
     axes[0,2].set_title('Elevasi vs Banjir', color='#e8f4fd', fontweight='bold')
 
     lp = df_train.groupby('laporan_warga')['banjir'].mean()*100
     lp.plot(kind='bar', ax=axes[1,0], color='#a78bfa', edgecolor='#0b1120')
     axes[1,0].set_title('Laporan Warga vs Banjir (PetaBencana)', color='#e8f4fd', fontweight='bold')
-    axes[1,0].set_xlabel('Jumlah Laporan Warga')
-    axes[1,0].set_ylabel('Frekuensi Banjir (%)')
+    axes[1,0].set_xlabel('Jumlah Laporan Warga'); axes[1,0].set_ylabel('Frekuensi Banjir (%)')
     axes[1,0].tick_params(axis='x', rotation=0)
 
-    monthly = df_train.groupby('bulan')['curah_hujan_mm'].mean()
+    monthly   = df_train.groupby('bulan')['curah_hujan_mm'].mean()
     bulan_lbl = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
     axes[1,1].bar(bulan_lbl,[monthly.get(b,0) for b in range(1,13)],
                   color=['#378ADD' if b in [11,12,1,2,3,4] else '#ef9f27' for b in range(1,13)],
@@ -713,16 +796,13 @@ with tab4:
                 ax=axes[1,2], linewidths=0.5, cbar_kws={'shrink':0.8})
     axes[1,2].set_title('Heatmap Korelasi Fitur', color='#e8f4fd', fontweight='bold')
     axes[1,2].tick_params(axis='x', rotation=45, labelsize=8)
-
-    plt.tight_layout()
-    st.pyplot(fig)
-    plt.close()
+    plt.tight_layout(); st.pyplot(fig); plt.close()
 
 # ── Footer ──
 st.divider()
 st.markdown("""
 <div style='text-align:center;color:#2a4a6a;font-size:.75rem;padding:.5rem 0'>
     SmartFlood ID · Gemastik 2026 · Smart City Track<br>
-    Data: BMKG Stasiun Juanda · PetaBencana.id · DEMNAS BIG
+    Data: BMKG Stasiun Juanda · PetaBencana.id · DEMNAS BIG · Open-Meteo API
 </div>
 """, unsafe_allow_html=True)
