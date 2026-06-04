@@ -459,76 +459,93 @@ with tab1:
                          'prob':p,'elevasi':ELEVASI[kec]})
     df_map = pd.DataFrame(map_rows)
 
-    # SVG peta bubble dengan label nama jelas
-    lats     = [v[0] for v in KORD.values()]
-    lons     = [v[1] for v in KORD.values()]
-    lat_min  = min(lats)-0.025; lat_max = max(lats)+0.025
-    lon_min  = min(lons)-0.025; lon_max = max(lons)+0.025
-
-    def to_svg(lat, lon, w=600, h=400):
-        x = (lon - lon_min)/(lon_max - lon_min) * w
-        y = (1 - (lat - lat_min)/(lat_max - lat_min)) * h
-        return round(x,1), round(y,1)
-
-    def risk_color(p):
+    # ── Matplotlib bubble map (lebih reliable dari SVG di Streamlit) ──
+    def risk_color_mpl(p):
         if p > 70: return '#e24b4a'
         if p > 40: return '#ef9f27'
         return '#4ade80'
 
-    # Build SVG elements
-    circles = ''; labels = ''
-    for _, r in df_map.iterrows():
-        x, y = to_svg(r['lat'], r['lon'])
-        col  = risk_color(r['prob'])
-        rad  = max(26, min(44, int(r['prob']/2) + 18))
-        # shadow
-        circles += f'<circle cx="{x+2}" cy="{y+2}" r="{rad}" fill="#000" fill-opacity="0.25"/>\n'
-        # main circle
-        circles += f'<circle cx="{x}" cy="{y}" r="{rad}" fill="{col}" fill-opacity="0.88" stroke="#0b1120" stroke-width="2"/>\n'
-        # pulsing ring jika kritis
-        if r['prob'] > 70:
-            circles += f'<circle cx="{x}" cy="{y}" r="{rad+6}" fill="none" stroke="{col}" stroke-width="1.5" stroke-opacity="0.4"/>\n'
-        # Label: nama kecamatan
-        labels += f'<text x="{x}" y="{y-6}" text-anchor="middle" font-size="9.5" fill="#ffffff" font-weight="bold" style="text-shadow:0 1px 3px #000">{r["kecamatan"]}</text>\n'
-        # Label: persentase
-        labels += f'<text x="{x}" y="{y+7}" text-anchor="middle" font-size="11" fill="#ffffff" font-weight="bold">{r["prob"]:.0f}%</text>\n'
-        # Label: elevasi
-        labels += f'<text x="{x}" y="{y+19}" text-anchor="middle" font-size="8" fill="#d0e8ff">{r["elevasi"]}m dpl</text>\n'
+    fig_map, ax_map = plt.subplots(figsize=(9, 6))
+    fig_map.patch.set_facecolor('#0a1628')
+    ax_map.set_facecolor('#0f1e38')
 
-    svg_map = f"""<svg viewBox="0 0 600 430" xmlns="http://www.w3.org/2000/svg"
-      style="background:linear-gradient(180deg,#0a1628 0%,#0f1e38 100%);
-             border-radius:14px;border:1px solid #1e3050;width:100%">
-  <!-- Grid lines -->
-  <line x1="0" y1="200" x2="600" y2="200" stroke="#1e3050" stroke-width="0.5" stroke-dasharray="4"/>
-  <line x1="300" y1="0" x2="300" y2="430" stroke="#1e3050" stroke-width="0.5" stroke-dasharray="4"/>
-  <!-- Title -->
-  <text x="12" y="20" font-size="11" fill="#7a9dbf" font-weight="bold">Surabaya — Peta Risiko Banjir Real-time</text>
-  <text x="12" y="34" font-size="8.5" fill="#4a6a8a">Sumber elevasi: DEMNAS BIG · Resolusi 8 meter · Koordinat GPS kecamatan</text>
-  <!-- Compass -->
-  <text x="575" y="30" font-size="11" fill="#4a6a8a" text-anchor="middle">N</text>
-  <line x1="575" y1="33" x2="575" y2="48" stroke="#4a6a8a" stroke-width="1.5"/>
-  <polygon points="575,33 572,44 575,41 578,44" fill="#4a6a8a"/>
-  {circles}
-  {labels}
-  <!-- Legend -->
-  <rect x="10" y="385" width="290" height="38" rx="6" fill="#0b1120" fill-opacity="0.9" stroke="#1e3050" stroke-width="1"/>
-  <circle cx="27" cy="400" r="7" fill="#e24b4a"/>
-  <text x="40" y="404" font-size="9" fill="#b0c4d8">Kritis &gt;70%</text>
-  <circle cx="105" cy="400" r="7" fill="#ef9f27"/>
-  <text x="118" y="404" font-size="9" fill="#b0c4d8">Waspada &gt;40%</text>
-  <circle cx="195" cy="400" r="7" fill="#4ade80"/>
-  <text x="208" y="404" font-size="9" fill="#b0c4d8">Aman ≤40%</text>
-  <text x="27" y="418" font-size="8" fill="#4a6a8a">Ukuran = tingkat risiko · Input: {src_txt[:30]}</text>
-  <!-- Scale bar -->
-  <line x1="450" y1="415" x2="570" y2="415" stroke="#4a6a8a" stroke-width="1.5"/>
-  <line x1="450" y1="412" x2="450" y2="418" stroke="#4a6a8a" stroke-width="1.5"/>
-  <line x1="570" y1="412" x2="570" y2="418" stroke="#4a6a8a" stroke-width="1.5"/>
-  <text x="510" y="410" font-size="8" fill="#4a6a8a" text-anchor="middle">~10 km</text>
-</svg>"""
+    # Grid lines tipis mirip peta
+    ax_map.grid(True, color='#1e3050', linewidth=0.5, linestyle='--', alpha=0.6)
+
+    for _, r in df_map.iterrows():
+        col  = risk_color_mpl(r['prob'])
+        size = max(400, min(2800, r['prob'] * 28 + 400))  # ukuran bubble
+
+        # Shadow bubble
+        ax_map.scatter(r['lon'], r['lat'], s=size*1.08, color='#000000',
+                       alpha=0.25, zorder=2)
+        # Bubble utama
+        ax_map.scatter(r['lon'], r['lat'], s=size, color=col,
+                       alpha=0.88, edgecolors='#0b1120', linewidths=1.5, zorder=3)
+        # Ring ekstra kalau kritis
+        if r['prob'] > 70:
+            ax_map.scatter(r['lon'], r['lat'], s=size*1.3, color=col,
+                           alpha=0.18, edgecolors=col, linewidths=1, zorder=2)
+
+        # Label: nama kecamatan (di atas bubble)
+        ax_map.annotate(r['kecamatan'],
+                        xy=(r['lon'], r['lat']),
+                        xytext=(0, 18), textcoords='offset points',
+                        ha='center', va='bottom',
+                        fontsize=8.5, fontweight='bold', color='#ffffff',
+                        zorder=5)
+        # Label: persentase (di tengah bubble)
+        ax_map.annotate(f"{r['prob']:.0f}%",
+                        xy=(r['lon'], r['lat']),
+                        xytext=(0, 1), textcoords='offset points',
+                        ha='center', va='center',
+                        fontsize=9.5, fontweight='bold', color='#ffffff',
+                        zorder=5)
+        # Label: elevasi (di bawah bubble)
+        ax_map.annotate(f"{r['elevasi']}m dpl",
+                        xy=(r['lon'], r['lat']),
+                        xytext=(0, -16), textcoords='offset points',
+                        ha='center', va='top',
+                        fontsize=7.5, color='#b0d4f0',
+                        zorder=5)
+
+    # Axes styling
+    ax_map.set_xlabel('Bujur (°E)', color='#4a6a8a', fontsize=9)
+    ax_map.set_ylabel('Lintang (°S)', color='#4a6a8a', fontsize=9)
+    ax_map.tick_params(colors='#4a6a8a', labelsize=8)
+    for spine in ax_map.spines.values():
+        spine.set_edgecolor('#1e3050')
+
+    # Title
+    ax_map.set_title(
+        f'Peta Risiko Banjir Real-time — Surabaya\n'
+        f'Elevasi: DEMNAS BIG (8m) · Input: {src_txt[:35]}',
+        color='#e8f4fd', fontsize=10, fontweight='bold', pad=10)
+
+    # Legend
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0],[0], marker='o', color='w', markerfacecolor='#e24b4a',
+               markersize=10, label='Kritis >70%'),
+        Line2D([0],[0], marker='o', color='w', markerfacecolor='#ef9f27',
+               markersize=10, label='Waspada >40%'),
+        Line2D([0],[0], marker='o', color='w', markerfacecolor='#4ade80',
+               markersize=10, label='Aman ≤40%'),
+    ]
+    ax_map.legend(handles=legend_elements, loc='lower left',
+                  facecolor='#0b1120', labelcolor='#b0c4d8',
+                  edgecolor='#1e3050', fontsize=8)
+
+    # Compass annotation
+    ax_map.annotate('N↑', xy=(0.97, 0.97), xycoords='axes fraction',
+                    ha='right', va='top', fontsize=11, color='#4a6a8a', fontweight='bold')
+
+    plt.tight_layout()
 
     col_map, col_rt = st.columns([2.2, 1])
     with col_map:
-        st.markdown(svg_map, unsafe_allow_html=True)
+        st.pyplot(fig_map)
+        plt.close(fig_map)
 
     with col_rt:
         st.markdown("**📡 Data Sumber 3 & 4:**")
