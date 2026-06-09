@@ -274,7 +274,7 @@ with st.sidebar:
 
     st.divider()
     st.markdown("### 🎛️ Mode Input")
-    mode = st.radio("",["🌐 Real-time (otomatis)","🎚️ Manual (slider)"],label_visibility="collapsed")
+    mode = st.radio("Mode Input",["🌐 Real-time (otomatis)","🎚️ Manual (slider)"],label_visibility="collapsed")
     if mode=="🌐 Real-time (otomatis)":
         sim_rr=RT_RR; sim_rh=RT_RH; sim_suhu=RT_TAVG; sim_angin=RT_ANGIN
         st.markdown(f"""<div style='font-size:.8rem;color:#b0c4d8;line-height:1.9;background:#0f2540;border-radius:8px;padding:.8rem'>
@@ -345,7 +345,7 @@ with tab1:
             st.markdown(f"<div class='{cls}' style='margin-bottom:6px'><b>{row['kecamatan']}</b> &nbsp; {row['status']}<br><span style='font-size:.8rem'>{row['prob']:.1f}% · elevasi {row['elevasi_m']}m dpl</span></div>",unsafe_allow_html=True)
 
     show_cols=['kecamatan','curah_hujan_mm','kelembaban_pct','tinggi_air_m','laporan_warga','elevasi_m','indeks_risiko','prob','status']
-    st.dataframe(dfp[show_cols].rename(columns={'curah_hujan_mm':'Curah Hujan (mm)','kelembaban_pct':'Kelembaban (%)','tinggi_air_m':'Tinggi Air (m)','laporan_warga':'Lap. Warga','elevasi_m':'Elevasi (m)','indeks_risiko':'Indeks Risiko','prob':'Prob. Banjir (%)','status':'Status'}),use_container_width=True)
+    st.dataframe(dfp[show_cols].rename(columns={'curah_hujan_mm':'Curah Hujan (mm)','kelembaban_pct':'Kelembaban (%)','tinggi_air_m':'Tinggi Air (m)','laporan_warga':'Lap. Warga','elevasi_m':'Elevasi (m)','indeks_risiko':'Indeks Risiko','prob':'Prob. Banjir (%)','status':'Status'}),width='stretch')
 
     st.markdown("---")
     st.markdown("#### 🗺️ Peta Interaktif — OpenStreetMap + DEMNAS BIG + PetaBencana.id")
@@ -377,8 +377,7 @@ with tab1:
 with tab2:
     if DATA_REAL and df_bmkg is not None:
         st.markdown(f"#### Data Real BMKG Stasiun Juanda — {len(df_bmkg)} Hari")
-        plt.rcParams.update({'axes.facecolor':'#0f1929','figure.facecolor':'#0b1120','text.color':'#b0c4d8',
-                             'axes.labelcolor':'#7a9dbf','xtick.color':'#7a9dbf','ytick.color':'#7a9dbf','axes.edgecolor':'#1e3050'})
+        plt.close('all')
         fig,axes=plt.subplots(2,3,figsize=(14,8))
         fig.suptitle('Data Real BMKG Stasiun Juanda',color='#e8f4fd',fontsize=13,fontweight='bold')
         axes[0,0].bar(df_bmkg['TANGGAL'],df_bmkg['RR'],color='#378ADD',edgecolor='#0b1120',width=0.8)
@@ -445,7 +444,7 @@ with tab2:
         top=df_val.nlargest(5,'prob')[['tanggal','kecamatan','curah_hujan_mm','prob']].copy()
         top['tanggal']=top['tanggal'].dt.strftime('%d %b %Y')
         top.columns=['Tanggal','Kecamatan','Curah Hujan (mm)','Prob. Banjir (%)']
-        st.markdown("**Top 5 Hari/Kecamatan Risiko Tertinggi:**"); st.dataframe(top,use_container_width=True)
+        st.markdown("**Top 5 Hari/Kecamatan Risiko Tertinggi:**"); st.dataframe(top,width='stretch')
     else:
         st.info("Upload file Excel BMKG di sidebar untuk melihat analisis data historis.")
 
@@ -455,7 +454,7 @@ with tab3:
     X=df_train[FEAT]; y=df_train['banjir']
     Xtr2,Xte2,ytr2,yte2=train_test_split(X,y,test_size=0.2,random_state=42,stratify=y)
     Xte2_sc=sc.transform(Xte2); rf_prob=rf.predict_proba(Xte2_sc)[:,1]; rf_pred=rf.predict(Xte2_sc); rf_auc=roc_auc_score(yte2,rf_prob)
-    plt.rcParams.update({'axes.facecolor':'#0f1929','figure.facecolor':'#0b1120','text.color':'#b0c4d8','axes.labelcolor':'#7a9dbf','xtick.color':'#7a9dbf','ytick.color':'#7a9dbf','axes.edgecolor':'#1e3050'})
+    plt.close('all')
     fig,axes=plt.subplots(1,3,figsize=(15,5))
     fig.suptitle(f'Evaluasi Model Random Forest — AUC: {rf_auc:.4f}',color='#e8f4fd',fontsize=13,fontweight='bold')
     cm=confusion_matrix(yte2,rf_pred)
@@ -482,32 +481,65 @@ with tab3:
 
 with tab4:
     st.markdown("#### Eksplorasi Dataset Training")
-    plt.rcParams.update({'axes.facecolor':'#0f1929','figure.facecolor':'#0b1120','text.color':'#b0c4d8','axes.labelcolor':'#7a9dbf','xtick.color':'#7a9dbf','ytick.color':'#7a9dbf','axes.edgecolor':'#1e3050'})
-    fig,axes=plt.subplots(2,3,figsize=(14,9))
-    fig.suptitle('Eksplorasi Data Terintegrasi (BMKG + PetaBencana + DEMNAS)',color='#e8f4fd',fontsize=13,fontweight='bold')
-    for label,color in [(0,'#4ade80'),(1,'#e24b4a')]:
-        df_train[df_train['banjir']==label]['curah_hujan_mm'].hist(bins=40,ax=axes[0,0],alpha=0.7,color=color,label='Tidak Banjir' if label==0 else 'Banjir',edgecolor='#0b1120')
-    axes[0,0].set_title('Curah Hujan vs Banjir (BMKG)',color='#e8f4fd',fontweight='bold')
-    axes[0,0].set_xlabel('Curah Hujan (mm)'); axes[0,0].legend(facecolor='#0f2540',labelcolor='#b0c4d8',edgecolor='#1e3050')
-    banjir_kec=df_train.groupby('kecamatan')['banjir'].mean().sort_values()*100
-    colors_kec=['#e24b4a' if v>55 else '#ef9f27' if v>35 else '#4ade80' for v in banjir_kec.values]
-    banjir_kec.plot(kind='barh',ax=axes[0,1],color=colors_kec,edgecolor='#0b1120')
-    axes[0,1].set_title('Frekuensi Banjir per Kecamatan',color='#e8f4fd',fontweight='bold'); axes[0,1].set_xlabel('Frekuensi Banjir (%)')
-    eb=df_train.groupby('kecamatan').agg(elevasi=('elevasi_m','mean'),banjir_pct=('banjir','mean')).reset_index()
-    axes[0,2].scatter(eb['elevasi'],eb['banjir_pct']*100,s=100,color='#60a5fa',edgecolor='#0b1120',lw=1.5)
-    for _,row in eb.iterrows(): axes[0,2].annotate(row['kecamatan'],(row['elevasi'],row['banjir_pct']*100),fontsize=7,color='#b0c4d8')
-    axes[0,2].set_xlabel('Elevasi (m dpl) — DEMNAS'); axes[0,2].set_ylabel('Frekuensi Banjir (%)'); axes[0,2].set_title('Elevasi vs Banjir',color='#e8f4fd',fontweight='bold')
-    lp=df_train.groupby('laporan_warga')['banjir'].mean()*100
-    lp.plot(kind='bar',ax=axes[1,0],color='#a78bfa',edgecolor='#0b1120')
-    axes[1,0].set_title('Laporan Warga vs Banjir (PetaBencana)',color='#e8f4fd',fontweight='bold'); axes[1,0].set_xlabel('Jumlah Laporan Warga'); axes[1,0].set_ylabel('Frekuensi Banjir (%)'); axes[1,0].tick_params(axis='x',rotation=0)
-    monthly=df_train.groupby('bulan')['curah_hujan_mm'].mean()
-    bulan_lbl=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
-    axes[1,1].bar(bulan_lbl,[monthly.get(b,0) for b in range(1,13)],color=['#378ADD' if b in [11,12,1,2,3,4] else '#ef9f27' for b in range(1,13)],edgecolor='#0b1120')
-    axes[1,1].set_title('Pola Musiman Curah Hujan Surabaya',color='#e8f4fd',fontweight='bold'); axes[1,1].set_ylabel('Rata-rata (mm/hari)')
-    num_cols=['curah_hujan_mm','tinggi_air_m','kelembaban_pct','elevasi_m','laporan_warga','durasi_hujan_jam','indeks_risiko','banjir']
-    sns.heatmap(df_train[num_cols].corr(),annot=True,fmt='.2f',cmap='Blues',ax=axes[1,2],linewidths=0.5,cbar_kws={'shrink':0.8})
-    axes[1,2].set_title('Heatmap Korelasi Fitur',color='#e8f4fd',fontweight='bold'); axes[1,2].tick_params(axis='x',rotation=45,labelsize=8)
-    plt.tight_layout(); st.pyplot(fig); plt.close()
+    plt.close('all')
+    _dark = {
+        'axes.facecolor':'#0f1929','figure.facecolor':'#0b1120',
+        'text.color':'#b0c4d8','axes.labelcolor':'#7a9dbf',
+        'xtick.color':'#7a9dbf','ytick.color':'#7a9dbf',
+        'axes.edgecolor':'#1e3050','grid.color':'#1e3050'
+    }
+    with plt.rc_context(_dark):
+        fig4,axes4=plt.subplots(2,3,figsize=(14,9))
+        fig4.suptitle('Eksplorasi Data Terintegrasi (BMKG + PetaBencana + DEMNAS)',
+                     color='#e8f4fd',fontsize=13,fontweight='bold')
+        # histogram curah hujan vs banjir
+        for label,color in [(0,'#4ade80'),(1,'#e24b4a')]:
+            subset = df_train[df_train['banjir']==label]['curah_hujan_mm']
+            axes4[0,0].hist(subset, bins=40, alpha=0.7, color=color,
+                           label='Tidak Banjir' if label==0 else 'Banjir', edgecolor='#0b1120')
+        axes4[0,0].set_title('Curah Hujan vs Banjir (BMKG)',color='#e8f4fd',fontweight='bold')
+        axes4[0,0].set_xlabel('Curah Hujan (mm)')
+        axes4[0,0].legend(facecolor='#0f2540',labelcolor='#b0c4d8',edgecolor='#1e3050')
 
+        banjir_kec=df_train.groupby('kecamatan')['banjir'].mean().sort_values()*100
+        colors_kec=['#e24b4a' if v>55 else '#ef9f27' if v>35 else '#4ade80' for v in banjir_kec.values]
+        banjir_kec.plot(kind='barh',ax=axes4[0,1],color=colors_kec,edgecolor='#0b1120')
+        axes4[0,1].set_title('Frekuensi Banjir per Kecamatan',color='#e8f4fd',fontweight='bold')
+        axes4[0,1].set_xlabel('Frekuensi Banjir (%)')
+
+        eb=df_train.groupby('kecamatan').agg(elevasi=('elevasi_m','mean'),banjir_pct=('banjir','mean')).reset_index()
+        axes4[0,2].scatter(eb['elevasi'],eb['banjir_pct']*100,s=100,color='#60a5fa',edgecolor='#0b1120',lw=1.5)
+        for _,row in eb.iterrows():
+            axes4[0,2].annotate(row['kecamatan'],(row['elevasi'],row['banjir_pct']*100),fontsize=7,color='#b0c4d8')
+        axes4[0,2].set_xlabel('Elevasi (m dpl) — DEMNAS')
+        axes4[0,2].set_ylabel('Frekuensi Banjir (%)')
+        axes4[0,2].set_title('Elevasi vs Banjir',color='#e8f4fd',fontweight='bold')
+
+        lp=df_train.groupby('laporan_warga')['banjir'].mean()*100
+        lp.plot(kind='bar',ax=axes4[1,0],color='#a78bfa',edgecolor='#0b1120')
+        axes4[1,0].set_title('Laporan Warga vs Banjir (PetaBencana)',color='#e8f4fd',fontweight='bold')
+        axes4[1,0].set_xlabel('Jumlah Laporan Warga')
+        axes4[1,0].set_ylabel('Frekuensi Banjir (%)')
+        axes4[1,0].tick_params(axis='x',rotation=0)
+
+        monthly=df_train.groupby('bulan')['curah_hujan_mm'].mean()
+        bulan_lbl=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
+        axes4[1,1].bar(bulan_lbl,[monthly.get(b,0) for b in range(1,13)],
+                      color=['#378ADD' if b in [11,12,1,2,3,4] else '#ef9f27' for b in range(1,13)],
+                      edgecolor='#0b1120')
+        axes4[1,1].set_title('Pola Musiman Curah Hujan Surabaya',color='#e8f4fd',fontweight='bold')
+        axes4[1,1].set_ylabel('Rata-rata (mm/hari)')
+        axes4[1,1].tick_params(axis='x',rotation=45,labelsize=8)
+
+        num_cols=['curah_hujan_mm','tinggi_air_m','kelembaban_pct','elevasi_m',
+                  'laporan_warga','durasi_hujan_jam','indeks_risiko','banjir']
+        sns.heatmap(df_train[num_cols].corr(),annot=True,fmt='.2f',cmap='Blues',
+                    ax=axes4[1,2],linewidths=0.5,cbar_kws={'shrink':0.8})
+        axes4[1,2].set_title('Heatmap Korelasi Fitur',color='#e8f4fd',fontweight='bold')
+        axes4[1,2].tick_params(axis='x',rotation=45,labelsize=8)
+
+        plt.tight_layout()
+        st.pyplot(fig4)
+        plt.close(fig4)
 st.divider()
 st.markdown("<div style='text-align:center;color:#2a4a6a;font-size:.75rem;padding:.5rem 0'>SmartFlood ID · Gemastik 2026 · Smart City Track<br>Data: BMKG Stasiun Juanda · PetaBencana.id · DEMNAS BIG · Open-Meteo API</div>",unsafe_allow_html=True)
