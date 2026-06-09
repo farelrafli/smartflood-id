@@ -315,7 +315,7 @@ st.markdown("<br>",unsafe_allow_html=True)
 tab1,tab2,tab3,tab4 = st.tabs(["🗺️ Prediksi Real-time","📊 Data BMKG Real","🤖 Evaluasi Model","📈 Eksplorasi Data"])
 
 with tab1:
-    dfp = predict_kec(rf,sc,le,FEAT,sim_rr,sim_rh,sim_suhu,sim_angin,laporan_extra=min(peta_count//3,5))
+    dfp = predict_kec(rf,sc,le,FEAT,sim_rr,sim_rh,sim_suhu,sim_angin,lap_extra=min(peta_count//3,5))
     src_txt = weather["SRC"] if weather["OK"] else "mode manual"
     peta_src_txt = "live API" if peta_ok else f"data historis fallback"
     st.markdown(f"""<div class='rt-banner'>📡 Data aktif: <b>Open-Meteo</b> (cuaca live) · <b>DEMNAS BIG</b> (elevasi) ·
