@@ -130,7 +130,7 @@ with st.sidebar:
     app_mode = st.radio("Sumber Ingestion Data:", ["📡 Real-Time (Kafka Stream)", "🎛️ Simulasi Manual"])
     
     if app_mode == "📡 Real-Time (Kafka Stream)":
-        st_autorefresh(interval=20000, limit=None, key="kafka_refresh")
+        st_autorefresh(interval=60000, limit=None, key="kafka_refresh")
     
     st.markdown("---")
     
