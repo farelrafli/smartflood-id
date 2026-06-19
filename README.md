@@ -1,5 +1,16 @@
-# 🌊 SmartFlood ID — Sistem Prediksi & Peringatan Dini Banjir Berbasis Big Data
-**Kota Surabaya | Gemastik 2026 — Smart City Track**
+# SmartFlood ID -- Sistem Prediksi & Peringatan Dini Banjir Berbasis Big Data
+
+---
+
+## 👥 Anggota Tim
+
+| No | Nama                           | NRP        |
+| -- | ------------------------------ | ---------- |
+| 1  | Salomo         | 502722063 |
+| 2  | Nabilah Anindya Paramesti | 5027241006 |
+| 3  | Muhammad Farrel Rafli Al Fasya                         | 5027221075 |
+| 4  | Ivan Syarifuddin      | 5027241045 |
+| 5  | Mohammad Abyan Ranuaji               | 5027241106 |
 
 ---
 
