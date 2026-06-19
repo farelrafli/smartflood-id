@@ -182,6 +182,28 @@ print(f"✅ Silver layer: {len(df_results)} kecamatan diproses via {results[0]['
 # ==============================================================
 print("\n💾 [GOLD] Menyimpan hasil ke Gold Layer...")
 
+# Simpan ke HDFS sebagai Parquet (Gold layer) — DILAKUKAN SEBELUM nulis JSON lokal
+# supaya hasil partisi nyata bisa disertakan sebagai bukti, bukan klaim kosong.
+gold_hdfs_path = "hdfs://localhost:8020/data/smartflood/hasil/prediksi_latest"
+partition_proof = {"written": False, "path": gold_hdfs_path, "partitions": [], "error": None}
+try:
+    df_spark_gold = spark.createDataFrame(df_results.drop(columns=['Method']))
+    df_spark_gold = df_spark_gold.withColumn("tanggal_proses", F.current_date())
+    df_spark_gold.write.mode("overwrite").partitionBy("tanggal_proses").parquet(gold_hdfs_path)
+    print(f"✅ Gold layer HDFS: {gold_hdfs_path} (Parquet, partisi tanggal)")
+
+    hadoop_conf = spark._jsc.hadoopConfiguration()
+    fs = spark._jvm.org.apache.hadoop.fs.FileSystem.get(hadoop_conf)
+    path_obj = spark._jvm.org.apache.hadoop.fs.Path(gold_hdfs_path)
+    statuses = fs.listStatus(path_obj)
+    partition_dirs = [s.getPath().getName() for s in statuses if s.isDirectory()]
+    partition_proof["written"] = True
+    partition_proof["partitions"] = partition_dirs
+    print(f"   Partisi terbukti ada: {partition_dirs}")
+except Exception as e:
+    print(f"⚠️ Gagal menyimpan ke HDFS Gold layer: {e}")
+    partition_proof["error"] = str(e)
+
 output_payload = {
     "timestamp_analisis": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     "data_source": data_source,
@@ -191,7 +213,8 @@ output_payload = {
         "suhu": float(tavg),
         "angin": float(wind)
     },
-    "prediksi_kecamatan": df_results.to_dict(orient='records')
+    "prediksi_kecamatan": df_results.to_dict(orient='records'),
+    "hdfs_partition_proof": partition_proof
 }
 
 # Simpan lokal (dikonsumsi Streamlit dashboard)
@@ -200,17 +223,6 @@ local_out = "dashboard/data/spark_results.json"
 with open(local_out, "w") as f:
     json.dump(output_payload, f, indent=4)
 print(f"✅ Gold layer lokal: {local_out}")
-
-# Simpan ke HDFS sebagai Parquet (Gold layer)
-try:
-    df_spark_gold = spark.createDataFrame(df_results.drop(columns=['Method']))
-    df_spark_gold = df_spark_gold.withColumn("tanggal_proses", F.current_date())
-    df_spark_gold.write.mode("overwrite").partitionBy("tanggal_proses").parquet(
-        "hdfs://localhost:8020/data/smartflood/hasil/prediksi_latest"
-    )
-    print("✅ Gold layer HDFS: /data/smartflood/hasil/prediksi_latest (Parquet, partisi tanggal)")
-except Exception as e:
-    print(f"⚠️ Gagal menyimpan ke HDFS Gold layer: {e}")
 
 # ==============================================================
 # 6. SPARK SQL SUMMARY (untuk demo)
