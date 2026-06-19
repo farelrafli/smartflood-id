@@ -1,0 +1,27 @@
+# Core Streamlit
+streamlit>=1.32.0
+streamlit-autorefresh>=1.0.1
+streamlit-folium>=0.20.0
+
+# ML & Data
+scikit-learn>=1.4.0
+pandas>=2.1.0
+numpy>=1.26.0
+joblib>=1.3.0
+
+# Geospasial
+folium>=0.16.0
+
+# Visualisasi
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Kafka
+kafka-python>=2.0.2
+
+# Data sources
+requests>=2.31.0
+feedparser>=6.0.11
+
+# Spark (opsional, dijalankan terpisah)
+# pyspark>=3.5.0

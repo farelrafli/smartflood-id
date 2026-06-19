@@ -1,0 +1,10 @@
+venv/
+.streamlit/
+
+*Zone.Identifier
+
+smartflood_rf_model_OLD_12fitur_JANGAN_DIPAKAI.pkl
+smartflood_encoder_OLD_JANGAN_DIPAKAI.pkl
+
+__pycache__/
+*.pyc

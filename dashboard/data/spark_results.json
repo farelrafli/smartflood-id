@@ -1,0 +1,131 @@
+{
+    "timestamp_analisis": "2026-06-18 00:43:48",
+    "cuaca_referensi": {
+        "waktu": "2026-06-18T00:30",
+        "curah_hujan": 0.0,
+        "suhu": 27.9,
+        "angin": 2.5833333333333335
+    },
+    "prediksi_kecamatan": [
+        {
+            "Kecamatan": "Bulak",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 24.8,
+            "Tinggi_Genangan_m": 0.48,
+            "Penduduk_Terdampak": 6079,
+            "Lead_Time_jam": 11
+        },
+        {
+            "Kecamatan": "Kenjeran",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 23.9,
+            "Tinggi_Genangan_m": 0.44,
+            "Penduduk_Terdampak": 9899,
+            "Lead_Time_jam": 11
+        },
+        {
+            "Kecamatan": "Semampir",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 21.7,
+            "Tinggi_Genangan_m": 0.36,
+            "Penduduk_Terdampak": 14296,
+            "Lead_Time_jam": 11
+        },
+        {
+            "Kecamatan": "Benowo",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 21.6,
+            "Tinggi_Genangan_m": 0.23,
+            "Penduduk_Terdampak": 5001,
+            "Lead_Time_jam": 11
+        },
+        {
+            "Kecamatan": "Bubutan",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 19.2,
+            "Tinggi_Genangan_m": 0.22,
+            "Penduduk_Terdampak": 6584,
+            "Lead_Time_jam": 12
+        },
+        {
+            "Kecamatan": "Pakal",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 18.6,
+            "Tinggi_Genangan_m": 0.1,
+            "Penduduk_Terdampak": 1910,
+            "Lead_Time_jam": 12
+        },
+        {
+            "Kecamatan": "Simokerto",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 17.6,
+            "Tinggi_Genangan_m": 0.2,
+            "Penduduk_Terdampak": 6782,
+            "Lead_Time_jam": 12
+        },
+        {
+            "Kecamatan": "Tandes",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 16.6,
+            "Tinggi_Genangan_m": 0.12,
+            "Penduduk_Terdampak": 3912,
+            "Lead_Time_jam": 12
+        },
+        {
+            "Kecamatan": "Sawahan",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 16.3,
+            "Tinggi_Genangan_m": 0.11,
+            "Penduduk_Terdampak": 6186,
+            "Lead_Time_jam": 12
+        },
+        {
+            "Kecamatan": "Gubeng",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 14.9,
+            "Tinggi_Genangan_m": 0.04,
+            "Penduduk_Terdampak": 1675,
+            "Lead_Time_jam": 12
+        },
+        {
+            "Kecamatan": "Genteng",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 13.5,
+            "Tinggi_Genangan_m": 0.01,
+            "Penduduk_Terdampak": 178,
+            "Lead_Time_jam": 12
+        },
+        {
+            "Kecamatan": "Wonokromo",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 12.8,
+            "Tinggi_Genangan_m": 0.0,
+            "Penduduk_Terdampak": 0,
+            "Lead_Time_jam": 13
+        },
+        {
+            "Kecamatan": "Sukolilo",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 9.1,
+            "Tinggi_Genangan_m": 0.0,
+            "Penduduk_Terdampak": 0,
+            "Lead_Time_jam": 13
+        },
+        {
+            "Kecamatan": "Lakarsantri",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 5.3,
+            "Tinggi_Genangan_m": 0.0,
+            "Penduduk_Terdampak": 0,
+            "Lead_Time_jam": 14
+        },
+        {
+            "Kecamatan": "Rungkut",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 1.4,
+            "Tinggi_Genangan_m": 0.0,
+            "Penduduk_Terdampak": 0,
+            "Lead_Time_jam": 14
+        }
+    ]
+}

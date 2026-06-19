@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
+
+/* Menerapkan font ke seluruh aplikasi */
+html, body, [class*="css"] {
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif !important;
+}
+
+/* ---------- Latar Belakang Tekstur Pasir Pantai ---------- */
+[data-testid="stAppViewContainer"], .stApp {
+    background-color: #F4F0EA !important;
+    /* Ini adalah kode pembuat tekstur bintik pasir halus tanpa perlu gambar external */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E") !important;
+}
+
+/* ---------- Hero Header (Laut Biru) ---------- */
+.flood-header {
+    background: linear-gradient(135deg, #0A3A52 0%, #15607F 100%);
+    border-radius: 12px;
+    padding: 30px 30px 45px 30px;
+    margin-bottom: 25px;
+    position: relative;
+    overflow: hidden;
+}
+.flood-header h1 {
+    color: #FFFFFF !important;
+    margin: 0 0 10px 0;
+    font-size: 2.2rem;
+    font-family: 'Outfit', sans-serif;
+}
+.flood-header p {
+    color: #E0F2FE;
+    margin: 0;
+    font-size: 1rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.wave-divider {
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 100%;
+    height: auto;
+}
+
+/* ---------- Status Badge ---------- */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.7); /* Transparan dikit agar pasir kelihatan */
+    border: 1px solid #D5C9B8;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    color: #334155;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+/* ---------- Metric Cards (Flat & Glassy Sand) ---------- */
+.metric-card {
+    background: rgba(255, 255, 255, 0.65); /* Efek tembus pandang menyatu dgn pasir */
+    border: 1px solid #D5C9B8;
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 10px;
+}
+.metric-card.danger { border-top: 4px solid #EF4444; }
+.metric-card.warn   { border-top: 4px solid #F59E0B; }
+.metric-card.safe   { border-top: 4px solid #10B981; }
+
+.big-num {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 5px 0;
+    color: #0F172A;
+}
+.metric-card.danger .big-num { color: #991B1B; }
+.metric-card.warn .big-num   { color: #B45309; }
+.metric-card.safe .big-num   { color: #065F46; }
+
+.card-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #5A697A;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ---------- Footer ---------- */
+.flood-footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #D5C9B8;
+    text-align: center;
+    color: #64748B;
+    font-size: 0.85rem;
+}
