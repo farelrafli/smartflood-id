@@ -21,7 +21,7 @@ Surabaya menghadapi ancaman banjir tahunan yang berdampak pada ratusan ribu warg
 |---------|--------|
 | **Volume** | 527 hari data BMKG Stasiun Juanda (Nov 2024 – Mei 2026), 15 kecamatan, ribuan rekaman fitur |
 | **Velocity** | Ingestion real-time via Apache Kafka (polling Open-Meteo tiap 60 detik, RSS tiap 5 menit) |
-| **Variety** | Data cuaca API (Open-Meteo), laporan warga (Tempo RSS), data hidrologi statis, ground truth BPBD |
+| **Variety** | Data cuaca API (Open-Meteo), laporan warga (Tempo RSS), data hidrologi statis, 30 tanggal BPBD sebagai sanity-check kualitatif |
 | **Veracity** | 5-Fold Time-Series CV untuk validasi, threshold F1.5 optimal, transparansi skor (AUC 0.75, jujur) |
 | **Value** | Prediksi probabilitas banjir per kecamatan + estimasi tinggi genangan, luas terdampak, jiwa terdampak, lead time peringatan dini |
 
@@ -153,7 +153,7 @@ streamlit run app.py
 | Fold terbaik | Fold 4 (AUC 0.9029) |
 | Threshold optimal | 0.465 (F1.5-Score) |
 
-**Catatan transparansi:** F1 kelas "Banjir" rendah (0.31) disebabkan ketidakseimbangan data ekstrem (71 kejadian banjir dari 1581 total). Oversampling SMOTE atau cost-sensitive learning dapat meningkatkan recall kelas minoritas. Ground truth 30 hari banjir bersumber dari BPBD Surabaya dikombinasikan dengan rule threshold curah hujan kumulatif 3 hari >80mm.
+**Catatan transparansi:** F1 kelas "Banjir" rendah (0.31) disebabkan ketidakseimbangan data ekstrem (71 kejadian banjir dari 1581 total). Oversampling SMOTE atau cost-sensitive learning dapat meningkatkan recall kelas minoritas. Label biner banjir dihasilkan dari formula fisik (curah hujan, elevasi, kapasitas drainase) yang diubah ke probabilitas lalu disampling secara stokastik (`np.random.binomial`) — **bukan rekaman kejadian resmi**. 30 tanggal historis BPBD Surabaya dipakai hanya sebagai sanity-check kualitatif terhadap label sintetis ini, bukan sebagai sumber label training. Detail dan justifikasi keputusan ini ada di notebook bagian evaluasi model.
 
 ---
 
@@ -179,9 +179,3 @@ smartflood-surabaya-main/
         ├── live_laporan.json      ← Output Kafka consumer (laporan RSS)
         └── spark_results.json     ← Output Spark Gold layer (lokal)
 ```
-
----
-
-## 👥 Tim
-**Kelompok SmartFlood ID** | Institut Teknologi Sepuluh Nopember (ITS)  
-Program Studi Teknologi Informasi | Big Data — Kelas B
