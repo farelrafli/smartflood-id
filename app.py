@@ -16,7 +16,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 st.set_page_config(
-    page_title="SmartFlood ID — Surabaya",
+    page_title="SmartFlood ID -- Surabaya",
     page_icon="🌊",
     layout="wide"
 )
@@ -120,7 +120,7 @@ WAVE_SVG = """
 st.markdown(f"""
 <div class="flood-header">
   <h1>🌊 SmartFlood ID</h1>
-  <p>Sistem Prediksi &amp; Peringatan Dini Banjir Berbasis Big Data — Kota Surabaya</p>
+  <p>Sistem Prediksi &amp; Peringatan Dini Banjir Berbasis Big Data -- Kota Surabaya</p>
   {WAVE_SVG}
 </div>
 """, unsafe_allow_html=True)
