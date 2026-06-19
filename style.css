@@ -1,40 +1,64 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
+/* ============================================================
+   SmartFlood ID — Style Sheet v6 (Sandy Coastal Theme)
+   Palette: warm sand + deep ocean + terracotta accent
+   Fonts: Sora (headings) + Inter (body/data)
+   ============================================================ */
 
-/* Menerapkan font ke seluruh aplikasi */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+/* ---------- Global Reset & Base ---------- */
 html, body, [class*="css"] {
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
-}
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', sans-serif !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+    color: #1E2A35 !important;         /* near-black ocean ink */
 }
 
-/* ---------- Latar Belakang Tekstur Pasir Pantai ---------- */
+h1, h2, h3, h4, h5, h6,
+.stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+    font-family: 'Sora', sans-serif !important;
+    color: #0A2233 !important;
+    letter-spacing: -0.02em;
+}
+
+/* ---------- App Background: Warm Sand ---------- */
 [data-testid="stAppViewContainer"], .stApp {
-    background-color: #F4F0EA !important;
-    /* Ini adalah kode pembuat tekstur bintik pasir halus tanpa perlu gambar external */
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E") !important;
+    background-color: #EDE8DF !important;
+    background-image:
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.045'/%3E%3C/svg%3E") !important;
 }
 
-/* ---------- Hero Header (Laut Biru) ---------- */
+/* Sidebar gets slightly deeper sand */
+[data-testid="stSidebar"] {
+    background-color: #E3DDD3 !important;
+    border-right: 1px solid #C9BFB0 !important;
+}
+[data-testid="stSidebar"] * {
+    color: #1E2A35 !important;
+}
+
+/* ---------- Hero Header ---------- */
 .flood-header {
-    background: linear-gradient(135deg, #0A3A52 0%, #15607F 100%);
-    border-radius: 12px;
-    padding: 30px 30px 45px 30px;
-    margin-bottom: 25px;
+    background: linear-gradient(140deg, #062034 0%, #0A3A52 55%, #125E7A 100%);
+    border-radius: 14px;
+    padding: 34px 34px 52px 34px;
+    margin-bottom: 28px;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 4px 20px rgba(6,32,52,0.22);
 }
 .flood-header h1 {
     color: #FFFFFF !important;
     margin: 0 0 10px 0;
-    font-size: 2.2rem;
-    font-family: 'Outfit', sans-serif;
+    font-size: 2.4rem;
+    font-family: 'Sora', sans-serif !important;
+    letter-spacing: -0.03em;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 .flood-header p {
-    color: #E0F2FE;
+    color: #B8DDEF !important;
     margin: 0;
-    font-size: 1rem;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 1.0rem;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 500;
 }
 .wave-divider {
     position: absolute;
@@ -43,59 +67,146 @@ h1, h2, h3, h4, h5, h6 {
     width: 100%;
     height: auto;
 }
+/* Tint the wave fill to match sand BG */
+.wave-divider path {
+    fill: #EDE8DF;
+}
+
+/* ---------- Streamlit Tabs ---------- */
+[data-testid="stTabs"] [role="tablist"] {
+    background: rgba(255,255,255,0.45);
+    border-radius: 10px;
+    padding: 4px;
+    border: 1px solid #C9BFB0;
+}
+[data-testid="stTabs"] button[role="tab"] {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    color: #4A5568 !important;
+    border-radius: 7px !important;
+}
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+    background: #0A3A52 !important;
+    color: #FFFFFF !important;
+}
+
+/* ---------- Metric Cards ---------- */
+.metric-card {
+    background: rgba(255, 255, 255, 0.70);
+    border: 1px solid #C9BFB0;
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    backdrop-filter: blur(4px);
+}
+.metric-card.danger { border-top: 4px solid #C0392B; }
+.metric-card.warn   { border-top: 4px solid #D97706; }
+.metric-card.safe   { border-top: 4px solid #059669; }
+
+.big-num {
+    font-family: 'Sora', sans-serif !important;
+    font-size: 1.9rem;
+    font-weight: 700;
+    margin: 6px 0 2px 0;
+    color: #0A2233 !important;
+}
+.metric-card.danger .big-num { color: #7F1D1D !important; }
+.metric-card.warn .big-num   { color: #78350F !important; }
+.metric-card.safe .big-num   { color: #064E3B !important; }
+
+.card-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #6B7280 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    font-family: 'Inter', sans-serif !important;
+}
 
 /* ---------- Status Badge ---------- */
 .status-badge {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.7); /* Transparan dikit agar pasir kelihatan */
-    border: 1px solid #D5C9B8;
-    border-radius: 6px;
-    padding: 8px 14px;
+    background: rgba(255,255,255,0.72);
+    border: 1px solid #C9BFB0;
+    border-radius: 8px;
+    padding: 8px 16px;
     font-size: 0.9rem;
-    color: #334155;
+    color: #1E2A35 !important;
     font-weight: 600;
     margin-bottom: 20px;
+    font-family: 'Inter', sans-serif !important;
 }
 
-/* ---------- Metric Cards (Flat & Glassy Sand) ---------- */
-.metric-card {
-    background: rgba(255, 255, 255, 0.65); /* Efek tembus pandang menyatu dgn pasir */
-    border: 1px solid #D5C9B8;
-    border-radius: 8px;
-    padding: 18px;
-    margin-bottom: 10px;
+/* ---------- General Streamlit text overrides ---------- */
+/* Make all markdown text clearly readable on sand */
+.stMarkdown p, .stMarkdown li, .stMarkdown td, .stMarkdown th,
+.stMarkdown span, .stMarkdown div,
+[data-testid="stText"], [data-testid="stCaption"],
+.stCaption, label, .stSelectbox label,
+.stSlider label, .stRadio label {
+    color: #1E2A35 !important;
 }
-.metric-card.danger { border-top: 4px solid #EF4444; }
-.metric-card.warn   { border-top: 4px solid #F59E0B; }
-.metric-card.safe   { border-top: 4px solid #10B981; }
 
-.big-num {
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin: 5px 0;
-    color: #0F172A;
-}
-.metric-card.danger .big-num { color: #991B1B; }
-.metric-card.warn .big-num   { color: #B45309; }
-.metric-card.safe .big-num   { color: #065F46; }
+/* Streamlit metric numbers & labels */
+[data-testid="stMetricValue"]  { color: #0A2233 !important; font-family: 'Sora', sans-serif !important; font-weight: 700 !important; }
+[data-testid="stMetricLabel"]  { color: #4A5568 !important; font-family: 'Inter', sans-serif !important; font-weight: 600 !important; }
+[data-testid="stMetricDelta"]  { color: #059669 !important; }
 
-.card-label {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: #5A697A;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+/* Info / success / warning boxes */
+[data-testid="stInfo"]    { background: rgba(10,58,82,0.08)  !important; color: #0A2233 !important; border-color: #0A3A52 !important; }
+[data-testid="stSuccess"] { background: rgba(5,150,105,0.08) !important; color: #064E3B !important; border-color: #059669 !important; }
+[data-testid="stWarning"] { background: rgba(217,119,6,0.10) !important; color: #78350F !important; border-color: #D97706 !important; }
+[data-testid="stError"]   { background: rgba(192,57,43,0.08) !important; color: #7F1D1D !important; border-color: #C0392B !important; }
+
+/* Code blocks */
+.stCode, code, pre {
+    background: #F7F4EF !important;
+    color: #0A2233 !important;
+    border: 1px solid #C9BFB0 !important;
+    border-radius: 8px !important;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
 }
+
+/* Buttons */
+.stButton > button {
+    background: #0A3A52 !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+}
+.stButton > button:hover {
+    background: #125E7A !important;
+}
+
+/* Selectbox / slider text */
+[data-baseweb="select"] * { color: #1E2A35 !important; }
+[data-baseweb="select"] [data-testid="stSelectboxContainer"] {
+    background: rgba(255,255,255,0.75) !important;
+    border-color: #C9BFB0 !important;
+}
+
+/* DataFrames */
+[data-testid="stDataFrame"] { color: #1E2A35 !important; }
+.dvn-scroller { background: transparent !important; }
+
+/* JSON viewer */
+[data-testid="stJson"] { background: #F7F4EF !important; color: #1E2A35 !important; }
+
+/* ---------- Horizontal Rule ---------- */
+hr { border-color: #C9BFB0 !important; }
 
 /* ---------- Footer ---------- */
 .flood-footer {
-    margin-top: 40px;
+    margin-top: 48px;
     padding-top: 20px;
-    border-top: 1px solid #D5C9B8;
+    border-top: 1px solid #C9BFB0;
     text-align: center;
-    color: #64748B;
+    color: #6B7280 !important;
     font-size: 0.85rem;
+    font-family: 'Inter', sans-serif !important;
 }
