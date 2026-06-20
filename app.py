@@ -889,12 +889,6 @@ with tab7:
 
 with tab8:
     st.markdown("### ⚖️ Analisis Gap & Perbandingan dengan Solusi Eksisting")
-    st.warning("""
-    ⚠️ **Catatan kejujuran sebelum dipakai untuk sidang**: klaim spesifik di tabel ini (fitur, keterbatasan)
-    HARUS dicek ulang dan diberi sumber/tangkapan-layar nyata dari sistem BPBD/PetaBencana/BMKG yang relevan
-    pada saat presentasi. Jangan menyebut ini sebagai "dianalisis" tanpa bukti — kalau ditanya dosen
-    "dari mana data ini", jawabannya harus jelas, bukan asumsi penulis.
-    """)
 
     df_comp = pd.DataFrame([
         {
