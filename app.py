@@ -772,7 +772,7 @@ with tab5:
 with tab6:
     st.markdown("### 📊 Evaluasi Model Random Forest")
     st.markdown("""
-    **Tentang Validasi Ini — dibaca dengan jujur:**
+    **Tentang Validasi Ini:**
     * Label banjir **bukan** rekaman kejadian resmi BPBD per-kecamatan. Label dibangun dari formula fisik
       (curah hujan, elevasi, koefisien limpasan, dst.) yang diubah menjadi probabilitas `prob_final`, lalu
       kelas biner di-generate dengan `np.random.binomial(1, prob_final)` — label **sintetis berbasis fisika**,
