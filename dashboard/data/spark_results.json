@@ -1,17 +1,27 @@
 {
-    "timestamp_analisis": "2026-06-20 07:36:07",
+    "timestamp_analisis": "2026-06-20 20:05:17",
     "data_source": "HDFS Bronze Layer",
     "cuaca_referensi": {
-        "waktu": "2026-06-20T07:30",
+        "waktu": "2026-06-20T20:00",
         "curah_hujan": 0.0,
-        "suhu": 27.6,
-        "angin": 1.777777777777778
+        "suhu": 29.2,
+        "angin": 4.361111111111111
     },
     "prediksi_kecamatan": [
         {
+            "Kecamatan": "Bubutan",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 17.2,
+            "Tinggi_Genangan_m": 0.22,
+            "Luas_Terdampak_km2": 0.32,
+            "Penduduk_Terdampak": 6584,
+            "Lead_Time_jam": 12,
+            "Method": "RF Model"
+        },
+        {
             "Kecamatan": "Wonokromo",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 19.9,
+            "Probabilitas": 14.1,
             "Tinggi_Genangan_m": 0.05,
             "Luas_Terdampak_km2": 0.13,
             "Penduduk_Terdampak": 2191,
@@ -21,7 +31,7 @@
         {
             "Kecamatan": "Genteng",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 14.7,
+            "Probabilitas": 13.9,
             "Tinggi_Genangan_m": 0.05,
             "Luas_Terdampak_km2": 0.1,
             "Penduduk_Terdampak": 1780,
@@ -29,9 +39,19 @@
             "Method": "RF Model"
         },
         {
+            "Kecamatan": "Bulak",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 12.0,
+            "Tinggi_Genangan_m": 0.48,
+            "Luas_Terdampak_km2": 0.98,
+            "Penduduk_Terdampak": 6079,
+            "Lead_Time_jam": 11,
+            "Method": "RF Model"
+        },
+        {
             "Kecamatan": "Gubeng",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 13.2,
+            "Probabilitas": 12.0,
             "Tinggi_Genangan_m": 0.05,
             "Luas_Terdampak_km2": 0.12,
             "Penduduk_Terdampak": 2234,
@@ -39,29 +59,9 @@
             "Method": "RF Model"
         },
         {
-            "Kecamatan": "Bubutan",
-            "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 12.8,
-            "Tinggi_Genangan_m": 0.22,
-            "Luas_Terdampak_km2": 0.32,
-            "Penduduk_Terdampak": 6584,
-            "Lead_Time_jam": 12,
-            "Method": "RF Model"
-        },
-        {
-            "Kecamatan": "Sukolilo",
-            "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 11.8,
-            "Tinggi_Genangan_m": 0.05,
-            "Luas_Terdampak_km2": 0.35,
-            "Penduduk_Terdampak": 1305,
-            "Lead_Time_jam": 13,
-            "Method": "RF Model"
-        },
-        {
             "Kecamatan": "Benowo",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 9.7,
+            "Probabilitas": 11.1,
             "Tinggi_Genangan_m": 0.23,
             "Luas_Terdampak_km2": 1.71,
             "Penduduk_Terdampak": 5001,
@@ -71,7 +71,7 @@
         {
             "Kecamatan": "Pakal",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 6.5,
+            "Probabilitas": 8.1,
             "Tinggi_Genangan_m": 0.1,
             "Luas_Terdampak_km2": 0.68,
             "Penduduk_Terdampak": 1910,
@@ -81,7 +81,7 @@
         {
             "Kecamatan": "Simokerto",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 6.3,
+            "Probabilitas": 8.1,
             "Tinggi_Genangan_m": 0.2,
             "Luas_Terdampak_km2": 0.32,
             "Penduduk_Terdampak": 6782,
@@ -89,9 +89,19 @@
             "Method": "RF Model"
         },
         {
+            "Kecamatan": "Kenjeran",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 7.9,
+            "Tinggi_Genangan_m": 0.44,
+            "Luas_Terdampak_km2": 1.0,
+            "Penduduk_Terdampak": 9899,
+            "Lead_Time_jam": 11,
+            "Method": "RF Model"
+        },
+        {
             "Kecamatan": "Sawahan",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 6.2,
+            "Probabilitas": 7.7,
             "Tinggi_Genangan_m": 0.11,
             "Luas_Terdampak_km2": 0.3,
             "Penduduk_Terdampak": 6186,
@@ -99,9 +109,19 @@
             "Method": "RF Model"
         },
         {
+            "Kecamatan": "Sukolilo",
+            "Status": "\ud83d\udfe2 AMAN",
+            "Probabilitas": 7.1,
+            "Tinggi_Genangan_m": 0.05,
+            "Luas_Terdampak_km2": 0.35,
+            "Penduduk_Terdampak": 1305,
+            "Lead_Time_jam": 13,
+            "Method": "RF Model"
+        },
+        {
             "Kecamatan": "Tandes",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 6.0,
+            "Probabilitas": 6.5,
             "Tinggi_Genangan_m": 0.12,
             "Luas_Terdampak_km2": 0.35,
             "Penduduk_Terdampak": 3912,
@@ -111,7 +131,7 @@
         {
             "Kecamatan": "Rungkut",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 5.9,
+            "Probabilitas": 5.8,
             "Tinggi_Genangan_m": 0.05,
             "Luas_Terdampak_km2": 0.32,
             "Penduduk_Terdampak": 1453,
@@ -121,7 +141,7 @@
         {
             "Kecamatan": "Semampir",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 5.0,
+            "Probabilitas": 5.5,
             "Tinggi_Genangan_m": 0.36,
             "Luas_Terdampak_km2": 0.96,
             "Penduduk_Terdampak": 14296,
@@ -129,29 +149,9 @@
             "Method": "RF Model"
         },
         {
-            "Kecamatan": "Bulak",
-            "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 4.8,
-            "Tinggi_Genangan_m": 0.48,
-            "Luas_Terdampak_km2": 0.98,
-            "Penduduk_Terdampak": 6079,
-            "Lead_Time_jam": 11,
-            "Method": "RF Model"
-        },
-        {
-            "Kecamatan": "Kenjeran",
-            "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 3.0,
-            "Tinggi_Genangan_m": 0.44,
-            "Luas_Terdampak_km2": 1.0,
-            "Penduduk_Terdampak": 9899,
-            "Lead_Time_jam": 11,
-            "Method": "RF Model"
-        },
-        {
             "Kecamatan": "Lakarsantri",
             "Status": "\ud83d\udfe2 AMAN",
-            "Probabilitas": 2.3,
+            "Probabilitas": 1.8,
             "Tinggi_Genangan_m": 0.05,
             "Luas_Terdampak_km2": 0.28,
             "Penduduk_Terdampak": 879,
